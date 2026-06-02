@@ -1,0 +1,5 @@
+# BIoTan-core runtime dependencies (intentionally minimal — local install, no heavy ML stack).
+pandas>=2.0
+numpy>=1.24
+scikit-learn>=1.3   # HDBSCAN lives in sklearn.cluster since 1.3
+scipy>=1.10
