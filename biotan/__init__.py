@@ -13,12 +13,13 @@ Stage status (built incrementally — see the project roadmap):
   [x] 2. Auto-clustering       -> :mod:`biotan.cluster`
   [x] 3. Common-mode removal (peer-z) -> :mod:`biotan.peerz`
   [x] 4. Multi-signal detection      -> :mod:`biotan.detect`
-  [ ] 5. Effect-size gating
+  [x] 5. Effect-size gating          -> :mod:`biotan.gate`
   [ ] 6. Backtest lead-time + HTML report
 """
 
 from biotan.cluster import ClusterResult, cluster_fleet
 from biotan.detect import SignalScores, compute_signals, run_signals
+from biotan.gate import FlagResult, apply_gate, gate_timeline, run_gate
 from biotan.normalize import load, normalize_frame
 from biotan.peerz import PeerZResult, compute_peer_z, run_peer_z
 
@@ -33,6 +34,10 @@ __all__ = [
     "compute_signals",
     "run_signals",
     "SignalScores",
+    "apply_gate",
+    "gate_timeline",
+    "run_gate",
+    "FlagResult",
 ]
 
 __version__ = "0.1.0"

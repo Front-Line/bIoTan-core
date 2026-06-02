@@ -145,11 +145,11 @@ def _validate(csv_path: str, truth_df: pd.DataFrame, faults_df: pd.DataFrame) ->
     sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     from sklearn.metrics import adjusted_rand_score
 
-    from biotan import detect as _detect
+    from biotan import gate as _gate
     from biotan import normalize as _normalize
 
     df = _normalize.load(csv_path)
-    signals, peerz_result, clustering = _detect.run_signals(df)
+    flags, signals, peerz_result, clustering = _gate.run_gate(df)
 
     print("\n--- validation: clustering vs. ground truth ---")
     for metric, res in clustering.items():
@@ -194,6 +194,19 @@ def _validate(csv_path: str, truth_df: pd.DataFrame, faults_df: pd.DataFrame) ->
             f"  FAULT {dev:<22} persistent={r['persistent']:+.2f} change={r['change']:+.2f} "
             f"instability={r['instability']:.2f} rigidity={r['rigidity']:+.2f}"
         )
+
+    print("\n--- validation: effect-size gate / flags (stage 5) ---")
+    ft = flags.table
+    flagged_ids = set(ft[ft["flagged"]]["device_id"])
+    caught = faulty_ids & flagged_ids
+    false_pos = flagged_ids - faulty_ids
+    if faulty_ids:
+        print(f"  faults caught     : {len(caught)}/{len(faulty_ids)}")
+    print(f"  false positives   : {len(false_pos)} {sorted(false_pos) if false_pos else ''}")
+    for dev in sorted(flagged_ids):
+        reasons = ft[ft["device_id"] == dev]["reasons"].iloc[0]
+        tag = "FAULT " if dev in faulty_ids else "      "
+        print(f"  {tag}FLAG {dev:<22} reasons: {reasons}")
 
 
 def main(argv: list[str] | None = None) -> int:

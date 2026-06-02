@@ -21,6 +21,7 @@ import pandas as pd
 
 from biotan import cluster as _cluster
 from biotan import detect as _detect
+from biotan import gate as _gate
 from biotan import normalize as _normalize
 from biotan import peerz as _peerz
 
@@ -127,12 +128,43 @@ def _cmd_signals(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_flag(args: argparse.Namespace) -> int:
+    df = _normalize.load(args.input)
+    flags, _signals, peerz_result, _clustering = _gate.run_gate(df)
+
+    for w in peerz_result.warnings:
+        print(f"  warning: {w}")
+
+    th = flags.thresholds
+    print(
+        f"\ngate: statistical (persistent>={th['PERSISTENT_Z']}, change>={th['CHANGE_Z']}, "
+        f"instability>={th['INSTABILITY_Z']}, rigidity>={th['RIGIDITY_Z']} robust-sigma) "
+        f"AND practical (effect >= {th['EFFECT_K']} x cohort scale)"
+    )
+
+    for metric, t in flags.table.groupby("metric"):
+        n_eval = int(t["evaluable"].sum())
+        flagged = t[t["flagged"]]
+        print(f"\n=== metric: {metric} ===")
+        print(f"  evaluable devices : {n_eval} / {len(t)}")
+        print(f"  flagged           : {len(flagged)}")
+        for _, r in flagged.iterrows():
+            print(f"      {r['device_id']:<24} reasons: {r['reasons']}")
+        if len(flagged) == 0 and n_eval > 0:
+            print("      (no device passed both gates — no clear peer-relative anomaly)")
+
+    if args.out:
+        flags.table.to_csv(args.out, index=False)
+        print(f"\nWrote flag decisions -> {args.out}")
+    return 0
+
+
 def _cmd_backtest(args: argparse.Namespace) -> int:
     print(
         "backtest is not implemented yet at this stage.\n"
         "Implemented so far: `summarize` (stage 1), `cluster` (stage 2), "
-        "`peerz` (stage 3), and `signals` (stage 4).\n"
-        "Effect-size gating and the HTML report come in later stages."
+        "`peerz` (stage 3), `signals` (stage 4), and `flag` (stage 5).\n"
+        "The backtest lead-time timeline and HTML report come in the next stage."
     )
     return 1
 
@@ -167,6 +199,11 @@ def build_parser() -> argparse.ArgumentParser:
     psig.add_argument("--input", required=True, help="input CSV path")
     psig.add_argument("--out", help="optional CSV path for the signal-score table")
     psig.set_defaults(func=_cmd_signals)
+
+    pf = sub.add_parser("flag", help="apply the effect-size gate and list flagged devices")
+    pf.add_argument("--input", required=True, help="input CSV path")
+    pf.add_argument("--out", help="optional CSV path for the flag-decision table")
+    pf.set_defaults(func=_cmd_flag)
 
     pb = sub.add_parser("backtest", help="(later stage) full peer-z pipeline + HTML report")
     pb.add_argument("--input", help="input CSV path")

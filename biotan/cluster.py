@@ -31,12 +31,14 @@ a failure.
 
 from __future__ import annotations
 
+import warnings
 from dataclasses import dataclass, field
 
 import numpy as np
 import pandas as pd
 from scipy.stats import median_abs_deviation
 from sklearn.cluster import HDBSCAN, KMeans
+from sklearn.exceptions import ConvergenceWarning
 from sklearn.metrics import silhouette_score
 from sklearn.preprocessing import StandardScaler
 
@@ -155,7 +157,11 @@ def _cluster_matrix(X: np.ndarray) -> tuple[np.ndarray, str, float | None, dict[
     best_km = None  # (sil, labels)
     k_upper = min(MAX_K, n - 1)
     for k in range(2, k_upper + 1):
-        labels = KMeans(n_clusters=k, n_init=10, random_state=0).fit_predict(X)
+        # Near-constant feature rows (e.g. a flat fleet) can collapse to fewer
+        # distinct points than k; that is handled below, so silence the warning.
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", ConvergenceWarning)
+            labels = KMeans(n_clusters=k, n_init=10, random_state=0).fit_predict(X)
         if len(np.unique(labels)) < 2:
             continue
         sil = float(silhouette_score(X, labels))
