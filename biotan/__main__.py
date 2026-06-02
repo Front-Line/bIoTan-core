@@ -24,6 +24,7 @@ from biotan import detect as _detect
 from biotan import gate as _gate
 from biotan import normalize as _normalize
 from biotan import peerz as _peerz
+from biotan import report as _report
 
 
 def _cmd_summarize(args: argparse.Namespace) -> int:
@@ -160,13 +161,24 @@ def _cmd_flag(args: argparse.Namespace) -> int:
 
 
 def _cmd_backtest(args: argparse.Namespace) -> int:
-    print(
-        "backtest is not implemented yet at this stage.\n"
-        "Implemented so far: `summarize` (stage 1), `cluster` (stage 2), "
-        "`peerz` (stage 3), `signals` (stage 4), and `flag` (stage 5).\n"
-        "The backtest lead-time timeline and HTML report come in the next stage."
-    )
-    return 1
+    df = _normalize.load(args.input)
+    labels = pd.read_csv(args.labels) if args.labels else None
+
+    result = _report.write_report(args.out, df, labels=labels, title=args.title)
+    bt = result.table
+
+    print(f"Wrote self-contained HTML report -> {args.out}")
+    n_flagged = int(bt["flagged"].sum())
+    print(f"Flagged devices: {n_flagged}")
+    leads = bt["lead_time_days"].dropna()
+    if not leads.empty:
+        print(f"Lead times (days, optimistic upper bound): "
+              f"min={leads.min():.1f} median={leads.median():.1f} max={leads.max():.1f}")
+    for _, r in bt[bt["flagged"]].iterrows():
+        lead = r["lead_time_days"]
+        lead_txt = f" — lead {lead:.1f} d" if pd.notna(lead) else ""
+        print(f"  {r['device_id']:<24} {r['status']}{lead_txt}  [{r['reasons']}]")
+    return 0
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -205,9 +217,11 @@ def build_parser() -> argparse.ArgumentParser:
     pf.add_argument("--out", help="optional CSV path for the flag-decision table")
     pf.set_defaults(func=_cmd_flag)
 
-    pb = sub.add_parser("backtest", help="(later stage) full peer-z pipeline + HTML report")
-    pb.add_argument("--input", help="input CSV path")
-    pb.add_argument("--out", help="output HTML report path")
+    pb = sub.add_parser("backtest", help="full pipeline -> self-contained HTML report")
+    pb.add_argument("--input", required=True, help="input CSV path")
+    pb.add_argument("--out", required=True, help="output HTML report path")
+    pb.add_argument("--labels", help="optional CSV of known failures (device_id, fault_start[, metric])")
+    pb.add_argument("--title", default="BIoTan backtest report", help="report title")
     pb.set_defaults(func=_cmd_backtest)
 
     return p

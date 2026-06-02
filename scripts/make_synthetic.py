@@ -64,18 +64,22 @@ def generate(
     common_mode: float = 0.25,
     noise: float = 0.05,
     n_faults: int = 0,
-    fault_start_frac: float = 0.6,
+    drift_onset_frac: float = 0.5,
+    failure_frac: float = 0.85,
     fault_magnitude: float = 0.4,
     seed: int = 7,
 ) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
     """Generate a synthetic fleet.
 
-    Returns ``(long_df, truth_df, faults_df)`` where ``truth_df`` has columns
-    ``device_id, metric, cohort`` and ``faults_df`` has ``device_id, metric,
-    fault_start`` (empty if ``n_faults == 0``). A "fault" is a gradual downward
-    drift starting partway through the history, reaching ``fault_magnitude`` of the
-    device's level by the end — the kind of peer-relative divergence the engine is
-    meant to surface.
+    Returns ``(long_df, truth_df, faults_df)``. ``truth_df`` has columns
+    ``device_id, metric, cohort``; ``faults_df`` has ``device_id, metric,
+    drift_onset, fault_start`` (empty if ``n_faults == 0``).
+
+    A faulty device begins a gradual downward drift at ``drift_onset_frac`` of the
+    history and is "failed/replaced" later, at ``failure_frac`` — that later date is
+    the *label* (``fault_start``) handed to the backtest. The gap between the drift
+    onset (which the engine should detect) and the failure label is exactly the
+    lead time the backtest reconstructs.
     """
     rng = np.random.default_rng(seed)
     shapes = _cohort_shapes()
@@ -84,7 +88,8 @@ def generate(
     periods = int(days * 24 * 60 / freq_minutes)
     index = pd.date_range(start, periods=periods, freq=f"{freq_minutes}min")
     hours = (index.hour + index.minute / 60.0).to_numpy(dtype=float)
-    fault_idx = int(periods * fault_start_frac)
+    onset_idx = int(periods * drift_onset_frac)
+    failure_idx = min(periods - 1, int(periods * failure_frac))
 
     records = []
     truth = []
@@ -114,11 +119,15 @@ def generate(
 
                 if device_id in faulty:
                     ramp = np.zeros(periods)
-                    n_after = periods - fault_idx
-                    ramp[fault_idx:] = np.linspace(0, fault_magnitude, n_after)
+                    ramp[onset_idx:] = np.linspace(0, fault_magnitude, periods - onset_idx)
                     signal = signal * (1.0 - ramp)
                     faults.append(
-                        {"device_id": device_id, "metric": metric, "fault_start": index[fault_idx]}
+                        {
+                            "device_id": device_id,
+                            "metric": metric,
+                            "drift_onset": index[onset_idx],
+                            "fault_start": index[failure_idx],  # the failure/replacement label
+                        }
                     )
 
                 records.append(
@@ -135,7 +144,7 @@ def generate(
 
     long_df = pd.concat(records, ignore_index=True)
     truth_df = pd.DataFrame(truth)
-    faults_df = pd.DataFrame(faults, columns=["device_id", "metric", "fault_start"])
+    faults_df = pd.DataFrame(faults, columns=["device_id", "metric", "drift_onset", "fault_start"])
     return long_df, truth_df, faults_df
 
 
@@ -145,11 +154,13 @@ def _validate(csv_path: str, truth_df: pd.DataFrame, faults_df: pd.DataFrame) ->
     sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     from sklearn.metrics import adjusted_rand_score
 
-    from biotan import gate as _gate
+    from biotan import backtest as _backtest
     from biotan import normalize as _normalize
 
     df = _normalize.load(csv_path)
-    flags, signals, peerz_result, clustering = _gate.run_gate(df)
+    bt, flags, peerz_result, clustering = _backtest.run_backtest(df, labels=faults_df)
+    from biotan import detect as _detect
+    signals = _detect.compute_signals(peerz_result.table)
 
     print("\n--- validation: clustering vs. ground truth ---")
     for metric, res in clustering.items():
@@ -176,11 +187,11 @@ def _validate(csv_path: str, truth_df: pd.DataFrame, faults_df: pd.DataFrame) ->
     if not faults_df.empty:
         for _, row in faults_df.iterrows():
             series = t[(t["device_id"] == row["device_id"]) & (t["metric"] == row["metric"])]
-            tail = series[series["timestamp"] >= row["fault_start"]]["peer_z"].abs()
+            tail = series[series["timestamp"] >= row["drift_onset"]]["peer_z"].abs()
             peak = tail.max() if not tail.empty else float("nan")
             print(
-                f"  FAULT {row['device_id']:<22} peak |peer-z| after fault = {peak:.2f} "
-                f"(fault injected {row['fault_start']})"
+                f"  FAULT {row['device_id']:<22} peak |peer-z| after onset = {peak:.2f} "
+                f"(drift onset {row['drift_onset']})"
             )
 
     print("\n--- validation: multi-signal scores (stage 4) ---")
@@ -208,6 +219,18 @@ def _validate(csv_path: str, truth_df: pd.DataFrame, faults_df: pd.DataFrame) ->
         tag = "FAULT " if dev in faulty_ids else "      "
         print(f"  {tag}FLAG {dev:<22} reasons: {reasons}")
 
+    if not faults_df.empty:
+        print("\n--- validation: backtest lead time (stage 6) ---")
+        print(f"  ({_backtest.LEAD_TIME_DISCLAIMER})")
+        onset_map = dict(zip(faults_df["device_id"], faults_df["drift_onset"]))
+        for _, row in bt.table[bt.table["device_id"].isin(faulty_ids)].iterrows():
+            true_onset = onset_map.get(row["device_id"])
+            print(
+                f"  FAULT {row['device_id']:<22} status: {row['status']}"
+                + (f"  (lead {row['lead_time_days']:.1f} d; true onset {true_onset})"
+                   if pd.notna(row["lead_time_days"]) else "")
+            )
+
 
 def main(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(description="Generate a synthetic IoT fleet dataset.")
@@ -219,7 +242,7 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--faults", type=int, default=0, help="number of devices to fault (per metric)")
     p.add_argument("--fault-magnitude", type=float, default=0.4, help="end drift as fraction of level")
     p.add_argument("--seed", type=int, default=7, help="random seed")
-    p.add_argument("--validate", action="store_true", help="run stages 1-3 and report metrics")
+    p.add_argument("--validate", action="store_true", help="run the full pipeline and report metrics")
     args = p.parse_args(argv)
 
     metrics = tuple(m.strip() for m in args.metrics.split(",") if m.strip())
