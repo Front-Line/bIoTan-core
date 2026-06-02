@@ -110,7 +110,11 @@ def _build_feature_matrix(metric_df: pd.DataFrame) -> tuple[np.ndarray, list[str
     X = np.vstack(rows)
 
     # Impute any all-missing hours (column-wise mean) so clustering is well-defined.
-    col_mean = np.nanmean(X, axis=0)
+    # An entirely-empty column (e.g. non-daily data with no hour-of-day structure)
+    # yields a NaN mean -> replaced with 0; the "empty slice" warning is expected.
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", RuntimeWarning)
+        col_mean = np.nanmean(X, axis=0)
     col_mean = np.where(np.isfinite(col_mean), col_mean, 0.0)
     inds = np.where(~np.isfinite(X))
     X[inds] = np.take(col_mean, inds[1])

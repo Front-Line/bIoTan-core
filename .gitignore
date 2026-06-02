@@ -216,3 +216,8 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# BIoTan validation artifacts (downloaded data and generated reports — never committed)
+validation/data/
+validation/*.html
+validation/*.out.csv

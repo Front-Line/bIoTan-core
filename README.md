@@ -67,7 +67,16 @@ hard-drive SMART telemetry with true failure labels, NASA turbofan degradation, 
 real satellite telemetry. The same pattern held throughout: where a location/condition
 leaves a strong enough signature, peer-relative deviation tracks real problems; where
 the signal is weak or the anomaly is contextual, the simple method reaches its limit.
-The validation scripts are in [`/validation`](./validation).
+
+A reproducible validation against real public data is included in
+[`/validation`](./validation) — run `python validation/run_cmapss.py` to download
+the **NASA C-MAPSS FD001** turbofan fleet (100 engines, run to failure with true
+failure points) and reproduce the numbers there. On that data, common-mode removal
+lifts peer-z above 2σ before failure for 99/100 engines, and the conservative
+zero-config gate confirms the fastest-degrading engines with a median lead of ~11
+cycles. It also honestly surfaces a limit: the behavioral-profile clustering assumes
+daily-cyclic data, so a non-cyclic run-to-failure fleet is best analysed as a single
+cohort (the script shows both).
 
 ## Quick start
 
@@ -79,6 +88,31 @@ python -m biotan backtest --input your_data.csv --out report.html
 Your CSV needs at least three columns: `device_id`, `timestamp`, `value`.
 Optional: `metric`, `group`, `unit`. Everything runs locally — **no data ever
 leaves your machine, and there is no telemetry.**
+
+Try it on synthetic data with known cohorts and injected faults:
+
+```bash
+python scripts/make_synthetic.py --out demo.csv --faults 2 --validate
+python -m biotan backtest --input demo.csv --labels demo.faults.csv --out report.html
+```
+
+### Commands
+
+The engine runs as one batch pipeline, but each stage is also runnable on its own
+(all read a CSV; nothing is configured by hand):
+
+| command | what it does |
+|---------|--------------|
+| `python -m biotan summarize --input data.csv` | parse + normalize; print fleet summary and inferred cadence |
+| `python -m biotan cluster --input data.csv` | discover behavioral cohorts (auto, zero-config) |
+| `python -m biotan peerz --input data.csv` | peer-relative deviation (peer-z) timelines, common mode removed |
+| `python -m biotan signals --input data.csv` | the four detection signals per device |
+| `python -m biotan flag --input data.csv` | apply the effect-size gate; list flagged devices + reasons |
+| `python -m biotan backtest --input data.csv --out report.html [--labels failures.csv]` | full pipeline → self-contained HTML report (+ lead time if labels given) |
+
+A labels CSV (for lead time) needs `device_id` and `fault_start` (optional
+`metric`). The HTML report is a single self-contained file — inline SVG charts, no
+external assets, no network calls.
 
 ## License
 
