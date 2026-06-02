@@ -11,7 +11,7 @@ runs locally.
 Stage status (built incrementally — see the project roadmap):
   [x] 1. Input normalization   -> :mod:`biotan.normalize`
   [x] 2. Auto-clustering       -> :mod:`biotan.cluster`
-  [ ] 3. Common-mode removal (peer-z)
+  [x] 3. Common-mode removal (peer-z) -> :mod:`biotan.peerz`
   [ ] 4. Multi-signal detection
   [ ] 5. Effect-size gating
   [ ] 6. Backtest lead-time + HTML report
@@ -19,12 +19,16 @@ Stage status (built incrementally — see the project roadmap):
 
 from biotan.cluster import ClusterResult, cluster_fleet
 from biotan.normalize import load, normalize_frame
+from biotan.peerz import PeerZResult, compute_peer_z, run_peer_z
 
 __all__ = [
     "load",
     "normalize_frame",
     "cluster_fleet",
     "ClusterResult",
+    "compute_peer_z",
+    "run_peer_z",
+    "PeerZResult",
 ]
 
 __version__ = "0.1.0"

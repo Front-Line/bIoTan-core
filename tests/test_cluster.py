@@ -15,7 +15,7 @@ import make_synthetic  # noqa: E402
 
 
 def test_recovers_known_cohorts():
-    long_df, truth_df = make_synthetic.generate(n_per_cohort=6, days=14, seed=1)
+    long_df, truth_df, _ = make_synthetic.generate(n_per_cohort=6, days=14, seed=1)
     results = C.cluster_fleet(long_df)
     res = results["power_kw"]
     truth_map = dict(zip(truth_df["device_id"], truth_df["cohort"]))
@@ -26,8 +26,8 @@ def test_recovers_known_cohorts():
 
 
 def test_per_metric_independent():
-    df_a, _ = make_synthetic.generate(n_per_cohort=5, days=10, metrics=("power_kw",), seed=2)
-    df_b, _ = make_synthetic.generate(n_per_cohort=5, days=10, metrics=("temp_c",), seed=3)
+    df_a, _, _ = make_synthetic.generate(n_per_cohort=5, days=10, metrics=("power_kw",), seed=2)
+    df_b, _, _ = make_synthetic.generate(n_per_cohort=5, days=10, metrics=("temp_c",), seed=3)
     df = pd.concat([df_a, df_b], ignore_index=True)
     results = C.cluster_fleet(df)
     assert set(results.keys()) == {"power_kw", "temp_c"}

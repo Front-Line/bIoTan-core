@@ -21,6 +21,7 @@ import pandas as pd
 
 from biotan import cluster as _cluster
 from biotan import normalize as _normalize
+from biotan import peerz as _peerz
 
 
 def _cmd_summarize(args: argparse.Namespace) -> int:
@@ -65,11 +66,43 @@ def _cmd_cluster(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_peerz(args: argparse.Namespace) -> int:
+    df = _normalize.load(args.input)
+    result, clustering = _peerz.run_peer_z(df)
+
+    for w in result.warnings:
+        print(f"  warning: {w}")
+
+    for metric, t in result.table.groupby("metric"):
+        defined = t["peer_z"].notna()
+        print(f"\n=== metric: {metric} ===")
+        print(f"  cohorts        : {result.cohort_sizes.get(str(metric), {})}")
+        print(f"  peer-z defined : {int(defined.sum()):,} / {len(t):,} rows")
+        if defined.any():
+            # Rank devices by their strongest sustained deviation (95th pct |z|).
+            absz = t.assign(absz=t["peer_z"].abs())
+            rank = (
+                absz.dropna(subset=["absz"])
+                .groupby("device_id")["absz"]
+                .quantile(0.95)
+                .sort_values(ascending=False)
+            )
+            print("  top |peer-z| (95th pct) by device:")
+            for dev, v in rank.head(5).items():
+                print(f"      {dev:<24} {v:.2f}")
+
+    if args.out:
+        result.table.to_csv(args.out, index=False)
+        print(f"\nWrote peer-z table -> {args.out}")
+    return 0
+
+
 def _cmd_backtest(args: argparse.Namespace) -> int:
     print(
         "backtest is not implemented yet at this stage.\n"
-        "Implemented so far: `summarize` (stage 1) and `cluster` (stage 2).\n"
-        "Common-mode removal, multi-signal detection, gating, and the HTML report "
+        "Implemented so far: `summarize` (stage 1), `cluster` (stage 2), "
+        "and `peerz` (stage 3).\n"
+        "Multi-signal detection, effect-size gating, and the HTML report "
         "come in later stages."
     )
     return 1
@@ -95,6 +128,11 @@ def build_parser() -> argparse.ArgumentParser:
         help="skip resampling to a regular grid before clustering",
     )
     pc.set_defaults(func=_cmd_cluster)
+
+    pz = sub.add_parser("peerz", help="compute peer-relative deviation (peer-z) timelines")
+    pz.add_argument("--input", required=True, help="input CSV path")
+    pz.add_argument("--out", help="optional CSV path for the peer-z long table")
+    pz.set_defaults(func=_cmd_peerz)
 
     pb = sub.add_parser("backtest", help="(later stage) full peer-z pipeline + HTML report")
     pb.add_argument("--input", help="input CSV path")
