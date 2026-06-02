@@ -88,7 +88,7 @@ Free for evaluation, research, and noncommercial use.
 Commercial or production use, and offering it as a hosted service,
 require a separate commercial license — contact contact@frontli.ne.kr.
 
-Copyright (c) 2026 Front-Line.
+Copyright (c) 2026 Victor Minbeom Joo d/b/a Front-Line
 
 ---
 *BIoTan is open core. Connectors, real-time operation, and fleet management are
