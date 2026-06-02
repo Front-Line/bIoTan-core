@@ -1,9 +1,3 @@
-# BIoTan-core
-# Required Notice: Copyright (c) 2026 Victor Minbeom Joo, Front-Line
-# (https://frontli.ne.kr) — contact@frontli.ne.kr
-# Licensed under the PolyForm Noncommercial License 1.0.0
-# https://polyformproject.org/licenses/noncommercial/1.0.0
-
 # BIoTan
 
 **Zero-config, peer-relative anomaly detection for fleets of homogeneous IoT assets.**
@@ -88,9 +82,13 @@ leaves your machine, and there is no telemetry.**
 
 ## License
 
-This core is released under the **PolyForm Noncommercial License** — free for
-evaluation, research, and noncommercial use. Commercial/production use and offering
-it as a hosted service require a separate commercial license. See [LICENSE](./LICENSE).
+BIoTan-core is source-available under the
+[PolyForm Noncommercial License 1.0.0](./LICENSE).
+Free for evaluation, research, and noncommercial use.
+Commercial or production use, and offering it as a hosted service,
+require a separate commercial license — contact contact@frontli.ne.kr.
+
+Copyright (c) 2026 Victor Minbeom Joo, Front-Line.
 
 ---
 *BIoTan is open core. Connectors, real-time operation, and fleet management are
