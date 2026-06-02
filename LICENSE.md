@@ -1,6 +1,6 @@
-Copyright (c) 2026 Victor Minbeom Joo (Front-Line)
+Copyright (c) 2026 Front-Line
 
-Required Notice: Copyright (c) 2026 Victor Minbeom Joo, Front-Line (https://frontli.ne.kr) — contact@frontli.ne.kr
+Required Notice: Copyright (c) 2026 Front-Line (https://frontli.ne.kr) — contact@frontli.ne.kr
 
 # PolyForm Noncommercial License 1.0.0
 
