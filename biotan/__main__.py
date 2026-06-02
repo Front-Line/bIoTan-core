@@ -20,6 +20,7 @@ import sys
 import pandas as pd
 
 from biotan import cluster as _cluster
+from biotan import detect as _detect
 from biotan import normalize as _normalize
 from biotan import peerz as _peerz
 
@@ -97,13 +98,41 @@ def _cmd_peerz(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_signals(args: argparse.Namespace) -> int:
+    df = _normalize.load(args.input)
+    signals, peerz_result, _ = _detect.run_signals(df)
+
+    for w in peerz_result.warnings:
+        print(f"  warning: {w}")
+
+    for metric, t in signals.table.groupby("metric"):
+        print(f"\n=== metric: {metric} ===")
+        # Rank by the strongest single signal (each on its own scale, abs value).
+        ranked = t.assign(
+            _strength=t[_detect.SIGNAL_COLUMNS].abs().max(axis=1)
+        ).sort_values("_strength", ascending=False)
+        header = f"  {'device':<24}{'persist':>9}{'change':>9}{'instab':>9}{'rigid':>9}"
+        print(header)
+        for _, r in ranked.head(10).iterrows():
+            def _f(x):
+                return f"{x:>9.2f}" if pd.notna(x) else f"{'n/a':>9}"
+            print(
+                f"  {r['device_id']:<24}"
+                f"{_f(r['persistent'])}{_f(r['change'])}{_f(r['instability'])}{_f(r['rigidity'])}"
+            )
+
+    if args.out:
+        signals.table.to_csv(args.out, index=False)
+        print(f"\nWrote signal scores -> {args.out}")
+    return 0
+
+
 def _cmd_backtest(args: argparse.Namespace) -> int:
     print(
         "backtest is not implemented yet at this stage.\n"
         "Implemented so far: `summarize` (stage 1), `cluster` (stage 2), "
-        "and `peerz` (stage 3).\n"
-        "Multi-signal detection, effect-size gating, and the HTML report "
-        "come in later stages."
+        "`peerz` (stage 3), and `signals` (stage 4).\n"
+        "Effect-size gating and the HTML report come in later stages."
     )
     return 1
 
@@ -133,6 +162,11 @@ def build_parser() -> argparse.ArgumentParser:
     pz.add_argument("--input", required=True, help="input CSV path")
     pz.add_argument("--out", help="optional CSV path for the peer-z long table")
     pz.set_defaults(func=_cmd_peerz)
+
+    psig = sub.add_parser("signals", help="compute multi-signal detection scores per device")
+    psig.add_argument("--input", required=True, help="input CSV path")
+    psig.add_argument("--out", help="optional CSV path for the signal-score table")
+    psig.set_defaults(func=_cmd_signals)
 
     pb = sub.add_parser("backtest", help="(later stage) full peer-z pipeline + HTML report")
     pb.add_argument("--input", help="input CSV path")

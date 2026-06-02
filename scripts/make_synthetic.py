@@ -145,11 +145,11 @@ def _validate(csv_path: str, truth_df: pd.DataFrame, faults_df: pd.DataFrame) ->
     sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     from sklearn.metrics import adjusted_rand_score
 
+    from biotan import detect as _detect
     from biotan import normalize as _normalize
-    from biotan import peerz as _peerz
 
     df = _normalize.load(csv_path)
-    peerz_result, clustering = _peerz.run_peer_z(df)
+    signals, peerz_result, clustering = _detect.run_signals(df)
 
     print("\n--- validation: clustering vs. ground truth ---")
     for metric, res in clustering.items():
@@ -182,6 +182,18 @@ def _validate(csv_path: str, truth_df: pd.DataFrame, faults_df: pd.DataFrame) ->
                 f"  FAULT {row['device_id']:<22} peak |peer-z| after fault = {peak:.2f} "
                 f"(fault injected {row['fault_start']})"
             )
+
+    print("\n--- validation: multi-signal scores (stage 4) ---")
+    sig = signals.table
+    faulty_ids = set(faults_df["device_id"])
+    healthy_change = sig[~sig["device_id"].isin(faulty_ids)]["change"].abs().median()
+    print(f"  healthy devices median |change| = {healthy_change:.3f}")
+    for dev in sorted(faulty_ids):
+        r = sig[sig["device_id"] == dev].iloc[0]
+        print(
+            f"  FAULT {dev:<22} persistent={r['persistent']:+.2f} change={r['change']:+.2f} "
+            f"instability={r['instability']:.2f} rigidity={r['rigidity']:+.2f}"
+        )
 
 
 def main(argv: list[str] | None = None) -> int:
