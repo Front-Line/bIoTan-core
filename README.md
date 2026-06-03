@@ -6,6 +6,10 @@
 [![Python](https://img.shields.io/pypi/pyversions/biotan)](https://pypi.org/project/biotan/)
 [![License: PolyForm NC](https://img.shields.io/badge/license-PolyForm--NC-blue)](LICENSE.md)
 
+```bash
+pip install biotan
+```
+
 # BIoTan
 
 **Zero-config, peer-relative anomaly detection for fleets of homogeneous IoT assets.**
