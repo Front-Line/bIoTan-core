@@ -2,6 +2,10 @@
 
 [Demo](https://biotan.frontli.ne.kr)
 
+[![PyPI version](https://img.shields.io/pypi/v/biotan)](https://pypi.org/project/biotan/)
+[![Python](https://img.shields.io/pypi/pyversions/biotan)](https://pypi.org/project/biotan/)
+[![License: PolyForm NC](https://img.shields.io/badge/license-PolyForm--NC-blue)](LICENSE.md)
+
 # BIoTan
 
 **Zero-config, peer-relative anomaly detection for fleets of homogeneous IoT assets.**
