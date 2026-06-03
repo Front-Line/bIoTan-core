@@ -1,4 +1,4 @@
-[한국어](./README-ko.MD)
+[한국어](./README-ko.md)
 
 # BIoTan
 
