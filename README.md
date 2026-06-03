@@ -19,7 +19,7 @@ This repository is the **free, open core**: a batch backtesting engine. You give
 historical sensor data as CSV; it gives you back cohorts, per-device deviation
 timelines, and flagged assets with reasons.
 
-![BIoTan report — a single device breaking away from its cohort band, flagged days before failure](docs/peer-z-example.png)
+![BIoTan report — engine_015 of the NASA C-MAPSS turbofan fleet breaking away from its cohort band before failure](docs/peer-z-example.png)
 
 ## Install
 

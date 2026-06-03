@@ -15,7 +15,7 @@ BIoTan은 비슷한 기기들의 fleet — 태양광 인버터, 냉동 설비, �
 이 저장소는 **무료 오픈 코어**다 — 배치 백테스트 엔진. 과거 센서 데이터를 CSV로 주면,
 코호트(cohort), 기기별 편차 타임라인, 그리고 플래그된 자산과 그 이유를 돌려준다.
 
-![BIoTan 리포트 — 한 기기가 코호트 범위에서 벗어나며 고장 며칠 전에 플래그되는 모습](docs/peer-z-example.png)
+![BIoTan 리포트 — NASA C-MAPSS 터보팬 fleet의 engine_015가 고장 전 코호트 범위에서 벗어나는 모습](docs/peer-z-example.png)
 
 ## 설치
 
