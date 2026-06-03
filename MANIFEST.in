@@ -1,0 +1,6 @@
+include LICENSE.md README.md README-ko.md requirements.txt
+recursive-include tests *.py
+recursive-include scripts *.py
+recursive-include validation *.py *.md
+prune validation/data
+global-exclude *.html *.pyc

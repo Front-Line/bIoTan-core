@@ -1,15 +1,38 @@
 [build-system]
-requires = ["setuptools>=64"]
+requires = ["setuptools>=77"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "biotan-core"
+name = "biotan"
 version = "0.1.0"
 description = "Zero-config, peer-relative anomaly backtesting for fleets of homogeneous IoT assets (free open core)."
 readme = "README.md"
 requires-python = ">=3.9"
-license = { text = "PolyForm-Noncommercial-1.0.0" }
-authors = [{ name = "Victor Minbeom Joo d/b/a Front-Line", email = "contact@frontli.ne.kr" }]
+license = "PolyForm-Noncommercial-1.0.0"
+license-files = ["LICENSE.md"]
+authors = [{ name = "Victor Minbeom Joo", email = "contact@frontli.ne.kr" }]
+keywords = [
+    "anomaly detection",
+    "iot",
+    "fleet",
+    "predictive maintenance",
+    "peer-relative",
+    "backtest",
+    "time series",
+]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Manufacturing",
+    "Intended Audience :: Science/Research",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering :: Information Analysis",
+]
 dependencies = [
     "pandas>=2.0",
     "numpy>=1.24",
@@ -18,7 +41,15 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-dev = ["pytest>=7.0"]
+dev = ["pytest>=7.0", "build", "twine"]
+
+[project.scripts]
+biotan = "biotan.__main__:main"
+
+[project.urls]
+Homepage = "https://github.com/Front-Line/bIoTan-core"
+Repository = "https://github.com/Front-Line/bIoTan-core"
+Issues = "https://github.com/Front-Line/bIoTan-core/issues"
 
 [tool.setuptools]
 packages = ["biotan"]
