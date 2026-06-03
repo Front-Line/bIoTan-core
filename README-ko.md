@@ -1,4 +1,3 @@
-[Demo](https://biotan.frontli.ne.kr)
 
 # BIoTan
 
@@ -6,12 +5,14 @@
 [![Python](https://img.shields.io/pypi/pyversions/biotan)](https://pypi.org/project/biotan/)
 [![License: PolyForm NC](https://img.shields.io/badge/license-PolyForm--NC-blue)](LICENSE.md)
 
+**무설정(zero-config), 또래-상대(peer-relative) 이상 탐지 — 동형(homogeneous) IoT 자산 fleet을 위한 도구.**
+
 ```bash
 pip install biotan
 ```
 
+[Demo](https://biotan.frontli.ne.kr)
 
-**무설정(zero-config), 또래-상대(peer-relative) 이상 탐지 — 동형(homogeneous) IoT 자산 fleet을 위한 도구.**
 
 BIoTan은 비슷한 기기들의 fleet — 태양광 인버터, 냉동 설비, 펌프, 드라이브, 센서 — 을 보고,
 *임계값을 설정하거나 그룹을 수동으로 묶지 않아도* 어떤 기기가 또래에서 벗어나고 있는지 알려준다.
