@@ -1,4 +1,4 @@
-include LICENSE.md README.md README-ko.md requirements.txt
+include LICENSE.md README.md README-ko.md CHANGELOG.md requirements.txt
 recursive-include tests *.py
 recursive-include scripts *.py
 recursive-include validation *.py *.md
