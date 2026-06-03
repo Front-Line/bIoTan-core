@@ -117,7 +117,7 @@ external assets, no network calls.
 ## License
 
 BIoTan-core is source-available under the
-[PolyForm Noncommercial License 1.0.0](./LICENSE).
+[PolyForm Noncommercial License 1.0.0](./LICENSE.md).
 Free for evaluation, research, and noncommercial use.
 Commercial or production use, and offering it as a hosted service,
 require a separate commercial license — contact contact@frontli.ne.kr.
