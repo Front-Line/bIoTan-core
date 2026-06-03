@@ -158,6 +158,12 @@ A labels CSV (for lead time) needs `device_id` and `fault_start` (optional
 `metric`). The HTML report is a single self-contained file — inline SVG charts, no
 external assets, no network calls.
 
+All pipeline commands also accept `--single-cohort`, which forces every device in a
+metric into one cohort instead of auto-clustering. Use it for genuinely homogeneous
+or **non-cyclic** fleets (e.g. run-to-failure data) where the zero-config,
+daily-cyclic clustering would over-segment — the same single-cohort mode
+`validation/run_cmapss.py` documents. Auto-clustering is otherwise unchanged.
+
 ## License
 
 BIoTan-core is source-available under the

@@ -226,11 +226,13 @@ def gate_timeline(peerz_result: _peerz.PeerZResult) -> pd.DataFrame:
     return t
 
 
-def run_gate(df: pd.DataFrame, min_peers: int = _peerz.MIN_PEERS):
+def run_gate(df: pd.DataFrame, min_peers: int = _peerz.MIN_PEERS,
+             force_single_cohort: bool = False):
     """End-to-end stages 1->5 from a normalized frame.
 
     Returns ``(FlagResult, SignalScores, PeerZResult, clustering)``.
     """
-    signals, peerz_result, clustering = _detect.run_signals(df, min_peers=min_peers)
+    signals, peerz_result, clustering = _detect.run_signals(
+        df, min_peers=min_peers, force_single_cohort=force_single_cohort)
     flags = apply_gate(signals, peerz_result)
     return flags, signals, peerz_result, clustering

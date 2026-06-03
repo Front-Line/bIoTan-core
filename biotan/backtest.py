@@ -170,12 +170,14 @@ def reconstruct_timelines(
     return BacktestResult(table=table, timeline=timeline)
 
 
-def run_backtest(df: pd.DataFrame, labels: pd.DataFrame | None = None, min_peers: int | None = None):
+def run_backtest(df: pd.DataFrame, labels: pd.DataFrame | None = None,
+                 min_peers: int | None = None, force_single_cohort: bool = False):
     """End-to-end stages 1->6 from a normalized frame.
 
     Returns ``(BacktestResult, FlagResult, PeerZResult, clustering)``.
     """
     kwargs = {} if min_peers is None else {"min_peers": min_peers}
-    flags, _signals, peerz_result, clustering = _gate.run_gate(df, **kwargs)
+    flags, _signals, peerz_result, clustering = _gate.run_gate(
+        df, force_single_cohort=force_single_cohort, **kwargs)
     result = reconstruct_timelines(flags, peerz_result, labels=labels)
     return result, flags, peerz_result, clustering

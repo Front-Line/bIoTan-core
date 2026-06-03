@@ -152,13 +152,22 @@ def compute_peer_z(
     return PeerZResult(table=table, cohort_sizes=cohort_sizes, warnings=warnings)
 
 
-def run_peer_z(df: pd.DataFrame, min_peers: int = MIN_PEERS) -> tuple[PeerZResult, dict]:
+def run_peer_z(
+    df: pd.DataFrame,
+    min_peers: int = MIN_PEERS,
+    force_single_cohort: bool = False,
+) -> tuple[PeerZResult, dict]:
     """End-to-end stages 1->3 from a normalized frame.
 
     Resamples to a regular grid once, clusters on that grid, then computes peer-z.
-    Returns ``(PeerZResult, clustering)``.
+    With ``force_single_cohort=True`` auto-clustering is bypassed and every device
+    in a metric is treated as one cohort. Returns ``(PeerZResult, clustering)``.
     """
     grid = _normalize.resample_to_grid(df)
-    clustering = _cluster.cluster_fleet(grid, resample=False)
+    clustering = (
+        _cluster.single_cohort(grid)
+        if force_single_cohort
+        else _cluster.cluster_fleet(grid, resample=False)
+    )
     result = compute_peer_z(grid, clustering, min_peers=min_peers)
     return result, clustering

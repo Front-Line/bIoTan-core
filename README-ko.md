@@ -144,6 +144,12 @@ python -m biotan backtest --input demo.csv --labels demo.faults.csv --out report
 리드타임용 라벨 CSV에는 `device_id` 와 `fault_start` 가 필요하다(선택: `metric`).
 HTML 보고서는 단일 자기완결 파일이다 — SVG 차트 인라인, 외부 자산 없음, 네트워크 호출 없음.
 
+모든 파이프라인 명령은 `--single-cohort` 옵션도 받는다 — 자동 군집화를 건너뛰고 metric 안의
+모든 기기를 하나의 코호트로 묶는다. zero-config(일 주기 가정) 군집화가 과분할하는 동형
+(homogeneous)·**비주기** fleet(예: run-to-failure 데이터)에 사용하라.
+`validation/run_cmapss.py` 가 설명하는 단일 코호트 모드와 동일하며, 자동 군집화 자체는
+바뀌지 않는다.
+
 ## 라이선스
 
 BIoTan-core는 [PolyForm Noncommercial License 1.0.0](./LICENSE.md) 하에

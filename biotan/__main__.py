@@ -26,6 +26,18 @@ from biotan import normalize as _normalize
 from biotan import peerz as _peerz
 from biotan import report as _report
 
+_SINGLE_COHORT_HELP = (
+    "treat all devices in each metric as one cohort (bypass auto-clustering); "
+    "use for homogeneous / non-cyclic fleets that get over-segmented"
+)
+
+
+def _maybe_hint_single_cohort(warnings, enabled: bool) -> None:
+    """If auto-clustering left undersized cohorts, suggest --single-cohort (stderr)."""
+    if warnings and not enabled:
+        print("hint: some cohorts were too small for peer comparison; re-run with "
+              "--single-cohort to treat the fleet as one cohort.", file=sys.stderr)
+
 
 def _cmd_summarize(args: argparse.Namespace) -> int:
     df = _normalize.load(args.input)
@@ -44,7 +56,11 @@ def _cmd_summarize(args: argparse.Namespace) -> int:
 
 def _cmd_cluster(args: argparse.Namespace) -> int:
     df = _normalize.load(args.input)
-    results = _cluster.cluster_fleet(df, resample=not args.no_resample)
+    results = (
+        _cluster.single_cohort(df)
+        if args.single_cohort
+        else _cluster.cluster_fleet(df, resample=not args.no_resample)
+    )
 
     rows = []
     for metric, res in results.items():
@@ -71,10 +87,11 @@ def _cmd_cluster(args: argparse.Namespace) -> int:
 
 def _cmd_peerz(args: argparse.Namespace) -> int:
     df = _normalize.load(args.input)
-    result, clustering = _peerz.run_peer_z(df)
+    result, clustering = _peerz.run_peer_z(df, force_single_cohort=args.single_cohort)
 
     for w in result.warnings:
         print(f"  warning: {w}")
+    _maybe_hint_single_cohort(result.warnings, args.single_cohort)
 
     for metric, t in result.table.groupby("metric"):
         defined = t["peer_z"].notna()
@@ -102,10 +119,11 @@ def _cmd_peerz(args: argparse.Namespace) -> int:
 
 def _cmd_signals(args: argparse.Namespace) -> int:
     df = _normalize.load(args.input)
-    signals, peerz_result, _ = _detect.run_signals(df)
+    signals, peerz_result, _ = _detect.run_signals(df, force_single_cohort=args.single_cohort)
 
     for w in peerz_result.warnings:
         print(f"  warning: {w}")
+    _maybe_hint_single_cohort(peerz_result.warnings, args.single_cohort)
 
     for metric, t in signals.table.groupby("metric"):
         print(f"\n=== metric: {metric} ===")
@@ -131,10 +149,12 @@ def _cmd_signals(args: argparse.Namespace) -> int:
 
 def _cmd_flag(args: argparse.Namespace) -> int:
     df = _normalize.load(args.input)
-    flags, _signals, peerz_result, _clustering = _gate.run_gate(df)
+    flags, _signals, peerz_result, _clustering = _gate.run_gate(
+        df, force_single_cohort=args.single_cohort)
 
     for w in peerz_result.warnings:
         print(f"  warning: {w}")
+    _maybe_hint_single_cohort(peerz_result.warnings, args.single_cohort)
 
     th = flags.thresholds
     print(
@@ -164,7 +184,8 @@ def _cmd_backtest(args: argparse.Namespace) -> int:
     df = _normalize.load(args.input)
     labels = pd.read_csv(args.labels) if args.labels else None
 
-    result = _report.write_report(args.out, df, labels=labels, title=args.title)
+    result = _report.write_report(args.out, df, labels=labels, title=args.title,
+                                  force_single_cohort=args.single_cohort)
     bt = result.table
 
     print(f"Wrote self-contained HTML report -> {args.out}")
@@ -200,21 +221,25 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="skip resampling to a regular grid before clustering",
     )
+    pc.add_argument("--single-cohort", action="store_true", help=_SINGLE_COHORT_HELP)
     pc.set_defaults(func=_cmd_cluster)
 
     pz = sub.add_parser("peerz", help="compute peer-relative deviation (peer-z) timelines")
     pz.add_argument("--input", required=True, help="input CSV path")
     pz.add_argument("--out", help="optional CSV path for the peer-z long table")
+    pz.add_argument("--single-cohort", action="store_true", help=_SINGLE_COHORT_HELP)
     pz.set_defaults(func=_cmd_peerz)
 
     psig = sub.add_parser("signals", help="compute multi-signal detection scores per device")
     psig.add_argument("--input", required=True, help="input CSV path")
     psig.add_argument("--out", help="optional CSV path for the signal-score table")
+    psig.add_argument("--single-cohort", action="store_true", help=_SINGLE_COHORT_HELP)
     psig.set_defaults(func=_cmd_signals)
 
     pf = sub.add_parser("flag", help="apply the effect-size gate and list flagged devices")
     pf.add_argument("--input", required=True, help="input CSV path")
     pf.add_argument("--out", help="optional CSV path for the flag-decision table")
+    pf.add_argument("--single-cohort", action="store_true", help=_SINGLE_COHORT_HELP)
     pf.set_defaults(func=_cmd_flag)
 
     pb = sub.add_parser("backtest", help="full pipeline -> self-contained HTML report")
@@ -222,6 +247,7 @@ def build_parser() -> argparse.ArgumentParser:
     pb.add_argument("--out", required=True, help="output HTML report path")
     pb.add_argument("--labels", help="optional CSV of known failures (device_id, fault_start[, metric])")
     pb.add_argument("--title", default="BIoTan backtest report", help="report title")
+    pb.add_argument("--single-cohort", action="store_true", help=_SINGLE_COHORT_HELP)
     pb.set_defaults(func=_cmd_backtest)
 
     return p

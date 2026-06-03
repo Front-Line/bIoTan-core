@@ -474,10 +474,12 @@ def write_report(
     df: pd.DataFrame,
     labels: pd.DataFrame | None = None,
     title: str = "BIoTan backtest report",
+    force_single_cohort: bool = False,
 ) -> BacktestResult:
     """Run stages 1->6 and write a self-contained HTML report to ``path``."""
     summary = _normalize.summarize(df)
-    result, flags, _peerz_result, clustering = run_backtest(df, labels=labels)
+    result, flags, _peerz_result, clustering = run_backtest(
+        df, labels=labels, force_single_cohort=force_single_cohort)
     htmldoc = build_report(summary, clustering, flags, result, title=title)
     with open(path, "w", encoding="utf-8") as fh:
         fh.write(htmldoc)

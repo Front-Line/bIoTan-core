@@ -85,7 +85,8 @@ class Result:
                 f"{s['metrics']} metric(s), {s['records']} records>")
 
 
-def backtest(data, labels=None, *, title: str = "BIoTan backtest report") -> Result:
+def backtest(data, labels=None, *, force_single_cohort: bool = False,
+             title: str = "BIoTan backtest report") -> Result:
     """Run the full peer-relative backtest and return a :class:`Result`.
 
     Parameters
@@ -96,11 +97,16 @@ def backtest(data, labels=None, *, title: str = "BIoTan backtest report") -> Res
     labels
         Optional known failures: path to a CSV or a ``DataFrame`` with at least
         ``device_id`` and ``fault_start``. When given, the result includes lead time.
+    force_single_cohort
+        If True, bypass auto-clustering and treat every device in a metric as one
+        cohort. Use for homogeneous / non-cyclic fleets the zero-config clustering
+        would over-segment. Defaults to False (auto-clustering unchanged).
     title
         Title used by :meth:`Result.to_html`.
     """
     df = _normalize.load(data) if isinstance(data, str) else _normalize.normalize_frame(data)
     lab = pd.read_csv(labels) if isinstance(labels, str) else labels
-    bt_result, flags, _peerz, clustering = run_backtest(df, labels=lab)
+    bt_result, flags, _peerz, clustering = run_backtest(
+        df, labels=lab, force_single_cohort=force_single_cohort)
     summary = _normalize.summarize(df)
     return Result(df, summary, clustering, flags, bt_result)

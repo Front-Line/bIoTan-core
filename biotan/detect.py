@@ -152,11 +152,13 @@ def compute_signals(
     return SignalScores(table=scores, notes=notes)
 
 
-def run_signals(df: pd.DataFrame, min_peers: int = _peerz.MIN_PEERS):
+def run_signals(df: pd.DataFrame, min_peers: int = _peerz.MIN_PEERS,
+                force_single_cohort: bool = False):
     """End-to-end stages 1->4 from a normalized frame.
 
     Returns ``(SignalScores, PeerZResult, clustering)``.
     """
-    peerz_result, clustering = _peerz.run_peer_z(df, min_peers=min_peers)
+    peerz_result, clustering = _peerz.run_peer_z(
+        df, min_peers=min_peers, force_single_cohort=force_single_cohort)
     signals = compute_signals(peerz_result.table, min_peers=min_peers)
     return signals, peerz_result, clustering

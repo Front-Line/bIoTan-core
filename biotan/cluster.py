@@ -241,3 +241,28 @@ def cluster_fleet(
     for metric, mdf in work.groupby("metric"):
         results[metric] = cluster_metric(mdf, str(metric))
     return results
+
+
+def single_cohort(df: pd.DataFrame) -> dict[str, ClusterResult]:
+    """Opt-in override: put every device in a metric into ONE cohort.
+
+    Bypasses auto-clustering entirely (no KMeans/HDBSCAN), reusing the existing
+    single-cohort representation (``method="single"``) so peer-z, detection, and
+    gating are unchanged. This is the right mode for genuinely homogeneous or
+    non-cyclic fleets, where the zero-config behavioral-profile clustering can
+    over-segment (see ``validation/run_cmapss.py``). Nothing about the auto path
+    changes; this is only used when explicitly requested.
+    """
+    results: dict[str, ClusterResult] = {}
+    for metric, mdf in df.groupby("metric"):
+        devices = sorted(mdf["device_id"].unique().tolist())
+        results[str(metric)] = ClusterResult(
+            metric=str(metric),
+            labels={d: 0 for d in devices},
+            method="single",
+            n_cohorts=1,
+            silhouette=None,
+            device_order=devices,
+            notes="forced single cohort (--single-cohort / force_single_cohort=True)",
+        )
+    return results
