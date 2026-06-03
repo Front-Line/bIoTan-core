@@ -6,14 +6,14 @@
 [![Python](https://img.shields.io/pypi/pyversions/biotan)](https://pypi.org/project/biotan/)
 [![License: PolyForm NC](https://img.shields.io/badge/license-PolyForm--NC-blue)](LICENSE.md)
 
+**Zero-config, peer-relative anomaly detection for fleets of homogeneous IoT assets.**
+
 ```bash
 pip install biotan
 ```
 
 [Demo](https://biotan.frontli.ne.kr)
 
-
-**Zero-config, peer-relative anomaly detection for fleets of homogeneous IoT assets.**
 
 BIoTan looks at a fleet of similar devices — solar inverters, refrigeration units,
 pumps, drives, sensors — and tells you which ones are drifting away from their peers,
