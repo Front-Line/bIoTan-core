@@ -1,6 +1,6 @@
 [한국어](./README-ko.md)
 
-[Demo](https://biotan.frontli.ne.kr)
+# BIoTan
 
 [![PyPI version](https://img.shields.io/pypi/v/biotan)](https://pypi.org/project/biotan/)
 [![Python](https://img.shields.io/pypi/pyversions/biotan)](https://pypi.org/project/biotan/)
@@ -10,7 +10,8 @@
 pip install biotan
 ```
 
-# BIoTan
+[Demo](https://biotan.frontli.ne.kr)
+
 
 **Zero-config, peer-relative anomaly detection for fleets of homogeneous IoT assets.**
 
