@@ -17,6 +17,7 @@ Stage status (built incrementally — see the project roadmap):
   [x] 6. Backtest lead-time + HTML report -> :mod:`biotan.backtest`, :mod:`biotan.report`
 """
 
+from biotan.api import Result, backtest
 from biotan.backtest import BacktestResult, reconstruct_timelines, run_backtest
 from biotan.cluster import ClusterResult, cluster_fleet
 from biotan.detect import SignalScores, compute_signals, run_signals
@@ -26,6 +27,10 @@ from biotan.peerz import PeerZResult, compute_peer_z, run_peer_z
 from biotan.report import build_report, write_report
 
 __all__ = [
+    # clean top-level library API
+    "backtest",
+    "Result",
+    # building blocks
     "load",
     "normalize_frame",
     "cluster_fleet",

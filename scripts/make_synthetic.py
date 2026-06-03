@@ -154,11 +154,11 @@ def _validate(csv_path: str, truth_df: pd.DataFrame, faults_df: pd.DataFrame) ->
     sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     from sklearn.metrics import adjusted_rand_score
 
-    from biotan import backtest as _backtest
+    from biotan.backtest import run_backtest, LEAD_TIME_DISCLAIMER
     from biotan import normalize as _normalize
 
     df = _normalize.load(csv_path)
-    bt, flags, peerz_result, clustering = _backtest.run_backtest(df, labels=faults_df)
+    bt, flags, peerz_result, clustering = run_backtest(df, labels=faults_df)
     from biotan import detect as _detect
     signals = _detect.compute_signals(peerz_result.table)
 
@@ -221,7 +221,7 @@ def _validate(csv_path: str, truth_df: pd.DataFrame, faults_df: pd.DataFrame) ->
 
     if not faults_df.empty:
         print("\n--- validation: backtest lead time (stage 6) ---")
-        print(f"  ({_backtest.LEAD_TIME_DISCLAIMER})")
+        print(f"  ({LEAD_TIME_DISCLAIMER})")
         onset_map = dict(zip(faults_df["device_id"], faults_df["drift_onset"]))
         for _, row in bt.table[bt.table["device_id"].isin(faulty_ids)].iterrows():
             true_onset = onset_map.get(row["device_id"])
@@ -236,11 +236,11 @@ def main(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(description="Generate a synthetic IoT fleet dataset.")
     p.add_argument("--out", default="synthetic.csv", help="output CSV path")
     p.add_argument("--per-cohort", type=int, default=6, help="devices per cohort")
-    p.add_argument("--days", type=int, default=21, help="length of history in days")
-    p.add_argument("--freq-minutes", type=int, default=60, help="sampling cadence in minutes")
+    p.add_argument("--days", type=int, default=30, help="length of history in days")
+    p.add_argument("--freq-minutes", type=int, default=150, help="sampling cadence in minutes")
     p.add_argument("--metrics", default="power_kw", help="comma-separated metric names")
     p.add_argument("--faults", type=int, default=0, help="number of devices to fault (per metric)")
-    p.add_argument("--fault-magnitude", type=float, default=0.4, help="end drift as fraction of level")
+    p.add_argument("--fault-magnitude", type=float, default=0.6, help="end drift as fraction of level")
     p.add_argument("--seed", type=int, default=7, help="random seed")
     p.add_argument("--validate", action="store_true", help="run the full pipeline and report metrics")
     args = p.parse_args(argv)

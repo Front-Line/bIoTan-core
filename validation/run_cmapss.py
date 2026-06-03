@@ -57,7 +57,7 @@ import pandas as pd
 # Make the package importable when run as a plain script.
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from biotan import backtest as _backtest  # noqa: E402
+from biotan.backtest import run_backtest, reconstruct_timelines, LEAD_TIME_DISCLAIMER  # noqa: E402
 from biotan import detect as _detect  # noqa: E402
 from biotan import gate as _gate  # noqa: E402
 from biotan import normalize as _normalize  # noqa: E402
@@ -168,7 +168,7 @@ def main(argv: list[str] | None = None) -> int:
 
     # --- (A) zero-config, exactly as a user would run it --------------------
     print("running zero-config pipeline (stages 1->6, one per sensor)...")
-    bt_zc, flags_zc, peerz_zc, clustering = _backtest.run_backtest(df, labels=labels)
+    bt_zc, flags_zc, peerz_zc, clustering = run_backtest(df, labels=labels)
     n_cohorts = {m: c.n_cohorts for m, c in clustering.items()}
     over_seg = sum(v > 1 for v in n_cohorts.values())
     print(f"  clustering cohorts per sensor   : {n_cohorts}")
@@ -183,11 +183,11 @@ def main(argv: list[str] | None = None) -> int:
     peerz_sf = _peerz.compute_peer_z(grid, single)
     signals_sf = _detect.compute_signals(peerz_sf.table)
     flags_sf = _gate.apply_gate(signals_sf, peerz_sf)
-    bt_sf = _backtest.reconstruct_timelines(flags_sf, peerz_sf, labels=labels)
+    bt_sf = reconstruct_timelines(flags_sf, peerz_sf, labels=labels)
     _report_leads("single-fleet (all engines = one cohort)", _per_engine_leads(bt_sf.table, devices))
     _signal_diagnostic(peerz_sf.table, labels)
 
-    print("\n" + _backtest.LEAD_TIME_DISCLAIMER)
+    print("\n" + LEAD_TIME_DISCLAIMER)
     print("Conclusion: common-mode removal surfaces real degradation (peer-z clears 2σ "
           "before failure for almost every engine); the conservative zero-config gate "
           "confirms the fastest-degrading engines with a positive lead time. This is "

@@ -22,9 +22,11 @@ from datetime import datetime
 import numpy as np
 import pandas as pd
 
-from biotan import backtest as _backtest
 from biotan import gate as _gate
 from biotan import normalize as _normalize
+# Direct submodule import: the top-level `biotan.backtest()` function shadows the
+# `biotan.backtest` attribute, so we pull these names from the submodule itself.
+from biotan.backtest import BacktestResult, LEAD_TIME_DISCLAIMER, run_backtest
 
 # ---------------------------------------------------------------------------
 # theme
@@ -337,7 +339,7 @@ def build_report(
     summary: _normalize.FleetSummary,
     clustering: dict,
     flags: _gate.FlagResult,
-    result: _backtest.BacktestResult,
+    result: BacktestResult,
     title: str = "BIoTan backtest report",
 ) -> str:
     timeline = result.timeline
@@ -453,7 +455,7 @@ def build_report(
         "<footer>"
         f"<b>What this does and doesn't tell you.</b> BIoTan compares each device to its "
         f"own peers — no thresholds, no manual grouping. It prioritizes what to inspect; it "
-        f"is not a guaranteed failure predictor. {_esc(_backtest.LEAD_TIME_DISCLAIMER)} "
+        f"is not a guaranteed failure predictor. {_esc(LEAD_TIME_DISCLAIMER)} "
         f"Devices without enough peers are left out rather than guessed at, and failures "
         f"with no sustained precursor are reported as such.<br><br>"
         f"100% local · no data leaves your machine · no telemetry. "
@@ -472,10 +474,10 @@ def write_report(
     df: pd.DataFrame,
     labels: pd.DataFrame | None = None,
     title: str = "BIoTan backtest report",
-) -> _backtest.BacktestResult:
+) -> BacktestResult:
     """Run stages 1->6 and write a self-contained HTML report to ``path``."""
     summary = _normalize.summarize(df)
-    result, flags, _peerz_result, clustering = _backtest.run_backtest(df, labels=labels)
+    result, flags, _peerz_result, clustering = run_backtest(df, labels=labels)
     htmldoc = build_report(summary, clustering, flags, result, title=title)
     with open(path, "w", encoding="utf-8") as fh:
         fh.write(htmldoc)

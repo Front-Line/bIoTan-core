@@ -6,7 +6,7 @@ import sys
 
 import pandas as pd
 
-from biotan import backtest as B
+from biotan.backtest import run_backtest as _run_backtest
 from biotan import report as R
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "scripts"))
@@ -17,7 +17,7 @@ def test_lead_time_is_positive_for_labeled_fault():
     long_df, _, faults_df = make_synthetic.generate(
         n_per_cohort=6, days=28, n_faults=1, fault_magnitude=0.6, seed=4
     )
-    result, *_ = B.run_backtest(long_df, labels=faults_df)
+    result, *_ = _run_backtest(long_df, labels=faults_df)
     faulty = faults_df.iloc[0]["device_id"]
     row = result.table[result.table["device_id"] == faulty].iloc[0]
 
@@ -30,7 +30,7 @@ def test_lead_time_is_positive_for_labeled_fault():
 
 def test_healthy_devices_have_no_anomaly():
     long_df, _, _ = make_synthetic.generate(n_per_cohort=6, days=21, seed=31)
-    result, *_ = B.run_backtest(long_df)
+    result, *_ = _run_backtest(long_df)
     statuses = set(result.table["status"])
     assert result.table["flagged"].sum() == 0
     assert statuses <= {"no anomaly", "anomaly onset (no failure label)", "not evaluable (no peer baseline)"}
@@ -41,7 +41,7 @@ def test_no_clear_precursor_is_reported_honestly():
     long_df, _, _ = make_synthetic.generate(n_per_cohort=6, days=21, seed=2)
     some_device = long_df["device_id"].unique()[0]
     labels = pd.DataFrame({"device_id": [some_device], "fault_start": [pd.Timestamp("2026-01-15")]})
-    result, *_ = B.run_backtest(long_df, labels=labels)
+    result, *_ = _run_backtest(long_df, labels=labels)
     row = result.table[result.table["device_id"] == some_device].iloc[0]
     assert row["status"] in {"no clear precursor", "detected only at/after failure"}
     assert pd.isna(row["lead_time_days"])

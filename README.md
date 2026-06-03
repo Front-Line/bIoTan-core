@@ -17,6 +17,46 @@ This repository is the **free, open core**: a batch backtesting engine. You give
 historical sensor data as CSV; it gives you back cohorts, per-device deviation
 timelines, and flagged assets with reasons.
 
+![BIoTan report — a single device breaking away from its cohort band, flagged days before failure](docs/peer-z-example.png)
+
+## Install
+
+```bash
+pip install biotan            # once published to PyPI
+```
+
+Or from source:
+
+```bash
+git clone https://github.com/Front-Line/bIoTan-core
+cd bIoTan-core && pip install -r requirements.txt
+```
+
+## Try it in 60 seconds (no data needed)
+
+```bash
+python scripts/make_synthetic.py --out demo.csv --faults 2 --validate
+python -m biotan backtest --input demo.csv --labels demo.faults.csv --out report.html
+```
+
+This builds a synthetic fleet with two injected faults, then writes a self-contained
+`report.html` that flags both devices and shows how many days before failure each one
+started drifting from its peers (a median of ~5 days in this demo).
+
+Prefer Python? The same pipeline in three lines:
+
+```python
+import biotan
+result = biotan.backtest("demo.csv", labels="demo.faults.csv")  # labels optional
+print(result.summary)     # {'records': ..., 'devices': 18, 'flagged': 2, ...}
+print(result.flagged)     # DataFrame: flagged devices, plain reasons, lead time
+result.to_html("report.html")
+```
+
+Want a real-world check? `python validation/run_cmapss.py` downloads the NASA C-MAPSS
+turbofan fleet (100 engines run to failure) and reproduces the headline result:
+peer-relative deviation clears 2σ before failure for 99 of 100 engines.
+
 ## Why peer-relative?
 
 Most monitoring asks *"is this value above a threshold?"* — which means someone has

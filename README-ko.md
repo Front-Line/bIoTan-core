@@ -12,6 +12,46 @@ BIoTan은 비슷한 기기들의 fleet — 태양광 인버터, 냉동 설비, �
 이 저장소는 **무료 오픈 코어**다 — 배치 백테스트 엔진. 과거 센서 데이터를 CSV로 주면,
 코호트(cohort), 기기별 편차 타임라인, 그리고 플래그된 자산과 그 이유를 돌려준다.
 
+![BIoTan 리포트 — 한 기기가 코호트 범위에서 벗어나며 고장 며칠 전에 플래그되는 모습](docs/peer-z-example.png)
+
+## 설치
+
+```bash
+pip install biotan            # PyPI 배포 후
+```
+
+또는 소스에서:
+
+```bash
+git clone https://github.com/Front-Line/bIoTan-core
+cd bIoTan-core && pip install -r requirements.txt
+```
+
+## 60초 만에 시험하기 (데이터 불필요)
+
+```bash
+python scripts/make_synthetic.py --out demo.csv --faults 2 --validate
+python -m biotan backtest --input demo.csv --labels demo.faults.csv --out report.html
+```
+
+두 개의 결함이 주입된 합성 fleet을 만든 뒤, 자기완결적 `report.html`을 생성한다.
+보고서는 두 기기를 모두 플래그하고, 각 기기가 고장 며칠 전부터 또래에서 벗어나기
+시작했는지 보여준다(이 데모에서는 중앙값 약 5일).
+
+Python이 편하다면, 같은 파이프라인을 3줄로:
+
+```python
+import biotan
+result = biotan.backtest("demo.csv", labels="demo.faults.csv")  # 라벨은 선택
+print(result.summary)     # {'records': ..., 'devices': 18, 'flagged': 2, ...}
+print(result.flagged)     # DataFrame: 플래그된 기기, 평이한 이유, 리드타임
+result.to_html("report.html")
+```
+
+실제 데이터로 확인하고 싶다면? `python validation/run_cmapss.py` 가 NASA C-MAPSS
+터보팬 fleet(엔진 100대, run-to-failure)을 내려받아 핵심 결과를 재현한다 —
+또래-상대 편차가 100대 중 99대에서 고장 전 2σ를 넘는다.
+
 ## 왜 또래-상대인가?
 
 대부분의 모니터링은 *"이 값이 임계값을 넘었나?"* 를 묻는다. 그러면 기기마다 임계값을
