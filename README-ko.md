@@ -5,6 +5,10 @@
 [![Python](https://img.shields.io/pypi/pyversions/biotan)](https://pypi.org/project/biotan/)
 [![License: PolyForm NC](https://img.shields.io/badge/license-PolyForm--NC-blue)](LICENSE.md)
 
+```bash
+pip install biotan
+```
+
 # BIoTan
 
 **무설정(zero-config), 또래-상대(peer-relative) 이상 탐지 — 동형(homogeneous) IoT 자산 fleet을 위한 도구.**
