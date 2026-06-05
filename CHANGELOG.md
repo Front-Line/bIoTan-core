@@ -3,6 +3,18 @@
 All notable changes to this project are documented here.
 This project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.1.1] — 2026-06-05
+
+Metadata-only patch release. No code or behavior changes.
+
+### Changed
+- `Homepage` project URL now points to the demo site (`https://biotan.frontli.ne.kr`)
+  instead of the GitHub repository (`Repository` still points to GitHub).
+- Declared support for Python 3.13 (`Programming Language :: Python :: 3.13`
+  classifier); `requires-python` is unchanged at `>=3.9`.
+- README install snippet no longer carries the pre-publication "once published to
+  PyPI" note (the package is now on PyPI).
+
 ## [0.1.0] — 2026-06-03
 
 Initial public release of the BIoTan open core.
@@ -45,4 +57,5 @@ Initial public release of the BIoTan open core.
 ### License
 - Source-available under PolyForm Noncommercial 1.0.0 (noncommercial use only).
 
+[0.1.1]: https://github.com/Front-Line/bIoTan-core/releases/tag/v0.1.1
 [0.1.0]: https://github.com/Front-Line/bIoTan-core/releases/tag/v0.1.0

@@ -29,7 +29,7 @@ BIoTan은 비슷한 기기들의 fleet — 태양광 인버터, 냉동 설비, �
 ## 설치
 
 ```bash
-pip install biotan            # PyPI 배포 후
+pip install biotan
 ```
 
 또는 소스에서:

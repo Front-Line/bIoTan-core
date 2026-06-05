@@ -33,7 +33,7 @@ timelines, and flagged assets with reasons.
 ## Install
 
 ```bash
-pip install biotan            # once published to PyPI
+pip install biotan
 ```
 
 Or from source:
