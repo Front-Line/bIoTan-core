@@ -21,6 +21,7 @@ import pandas as pd
 
 from biotan import cluster as _cluster
 from biotan import detect as _detect
+from biotan import events as _events
 from biotan import gate as _gate
 from biotan import normalize as _normalize
 from biotan import peerz as _peerz
@@ -180,6 +181,30 @@ def _cmd_flag(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_events(args: argparse.Namespace) -> int:
+    df = _normalize.load(args.input)
+    result = _events.detect_events(df, cohort_col=args.cohort_col, k=args.k, h=args.h,
+                                   period_aggregate=args.period_agg)
+    et = result.events_table()
+    print(f"Cohort events (Mode A): {len(result.events)}")
+    for _, e in et.iterrows():
+        print(f"  [{e['t_start']:%Y-%m-%d %H:%M} .. {e['t_end']:%Y-%m-%d %H:%M}] "
+              f"{e['metric']}/{e['cohort']} dir={e['direction']} "
+              f"({e['n_affected']}/{e['n_members']}): {e['affected']}")
+    for nt in result.notes[:8]:
+        print(f"  note: {nt}")
+    if args.out:
+        et.to_csv(args.out, index=False)
+        print(f"Wrote events -> {args.out}")
+    if args.report:
+        html = _report.build_event_report(df, result, cohort_col=args.cohort_col,
+                                           title=args.title or "BIoTan cohort events")
+        with open(args.report, "w", encoding="utf-8") as fh:
+            fh.write(html)
+        print(f"Wrote event report -> {args.report}")
+    return 0
+
+
 def _cmd_backtest(args: argparse.Namespace) -> int:
     df = _normalize.load(args.input)
     labels = pd.read_csv(args.labels) if args.labels else None
@@ -241,6 +266,19 @@ def build_parser() -> argparse.ArgumentParser:
     pf.add_argument("--out", help="optional CSV path for the flag-decision table")
     pf.add_argument("--single-cohort", action="store_true", help=_SINGLE_COHORT_HELP)
     pf.set_defaults(func=_cmd_flag)
+
+    pe = sub.add_parser("events",
+                        help="cohort event detection — when a cohort diverges internally, and who (Mode A)")
+    pe.add_argument("--input", required=True, help="input CSV path")
+    pe.add_argument("--cohort-col", help="column holding the fixed cohort id (e.g. group)")
+    pe.add_argument("--out", help="optional CSV of detected events")
+    pe.add_argument("--report", help="optional self-contained HTML event report")
+    pe.add_argument("--title", help="report title")
+    pe.add_argument("--k", type=float, default=_events.CUSUM_SLACK_K, help="CUSUM slack (robust-sigma)")
+    pe.add_argument("--h", type=float, default=_events.CUSUM_THRESHOLD_H, help="CUSUM threshold")
+    pe.add_argument("--period-agg", default="auto", choices=["auto", "daily", "none"],
+                    dest="period_agg", help="period aggregation for diurnal data")
+    pe.set_defaults(func=_cmd_events)
 
     pb = sub.add_parser("backtest", help="full pipeline -> self-contained HTML report")
     pb.add_argument("--input", required=True, help="input CSV path")

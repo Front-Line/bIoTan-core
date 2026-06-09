@@ -21,6 +21,7 @@ from biotan.api import Result, backtest
 from biotan.backtest import BacktestResult, reconstruct_timelines, run_backtest
 from biotan.cluster import ClusterResult, cluster_fleet
 from biotan.detect import SignalScores, compute_signals, run_signals
+from biotan.events import EventResult, detect_events
 from biotan.gate import FlagResult, apply_gate, gate_timeline, run_gate
 from biotan.normalize import load, normalize_frame
 from biotan.peerz import PeerZResult, compute_peer_z, run_peer_z
@@ -50,6 +51,8 @@ __all__ = [
     "BacktestResult",
     "build_report",
     "write_report",
+    "detect_events",
+    "EventResult",
 ]
 
 __version__ = "0.1.1"

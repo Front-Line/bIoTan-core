@@ -469,6 +469,127 @@ def build_report(
     return "".join(out)
 
 
+# ---------------------------------------------------------------------------
+# Mode A cohort-event report (consensus band + members diverging + interval)
+# ---------------------------------------------------------------------------
+
+def event_chart_svg(member_long: pd.DataFrame, event, width=880, height=280) -> str:
+    """SVG: cohort members over time, consensus, the event interval shaded, and
+    the affected (signed) subset highlighted."""
+    wide = (member_long.pivot_table(index="timestamp", columns="device_id",
+                                    values="value", aggfunc="mean").sort_index())
+    t0, t1 = wide.index.min(), wide.index.max()
+    consensus = wide.median(axis=1)
+    allv = wide.to_numpy(dtype=float)
+    allv = allv[np.isfinite(allv)]
+    vmin, vmax = float(allv.min()), float(allv.max())
+    pad = (vmax - vmin) * 0.08 or 1.0
+    vmin, vmax = vmin - pad, vmax + pad
+    region = (54, 16, width - 70, height - 44)
+    rx, ry, rw, rh = region
+    affected = {a.device_id: a.direction for a in event.affected}
+
+    parts = [f'<svg viewBox="0 0 {width} {height}" width="100%" '
+             f'preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg">',
+             f'<rect width="{width}" height="{height}" fill="{_PANEL}"/>',
+             f'<rect x="{rx}" y="{ry}" width="{rw}" height="{rh}" fill="{_PANEL_2}" rx="6"/>']
+
+    # shaded event interval
+    xa = _xt(event.t_start, t0, t1, rx, rw)
+    xb = _xt(event.t_end, t0, t1, rx, rw)
+    parts.append(f'<rect x="{xa:.1f}" y="{ry}" width="{max(xb - xa, 1.5):.1f}" '
+                 f'height="{rh}" fill="{_AMBER}" opacity="0.12"/>')
+    parts.append(f'<line x1="{xa:.1f}" y1="{ry}" x2="{xa:.1f}" y2="{ry + rh}" '
+                 f'stroke="{_AMBER}" stroke-width="1.4" stroke-dasharray="5,4"/>'
+                 f'<text x="{xa + 4:.1f}" y="{ry + 12}" font-size="11" '
+                 f'fill="{_AMBER}" font-weight="600">event</text>')
+
+    # healthy members (faint), then consensus, then affected (bold red)
+    for m in wide.columns:
+        if m in affected:
+            continue
+        parts.append(_line(wide.index, wide[m], t0, t1, vmin, vmax, region,
+                           _BAND, w=0.8, opacity=0.45))
+    parts.append(_line(wide.index, consensus, t0, t1, vmin, vmax, region,
+                       _INK, w=1.6, opacity=0.85))
+    for m in affected:
+        if m in wide.columns:
+            parts.append(_line(wide.index, wide[m], t0, t1, vmin, vmax, region, _RED, w=2.4))
+
+    parts.append(f'<text x="{rx}" y="{ry + rh + 15}" font-size="11" fill="{_MUTED}">'
+                 f'{pd.Timestamp(t0).strftime("%Y-%m-%d %H:%M")}</text>')
+    parts.append(f'<text x="{rx + rw}" y="{ry + rh + 15}" font-size="11" fill="{_MUTED}" '
+                 f'text-anchor="end">{pd.Timestamp(t1).strftime("%Y-%m-%d %H:%M")}</text>')
+    parts.append("</svg>")
+    return "".join(parts)
+
+
+def build_event_report(df: pd.DataFrame, result, cohort_col: str | None = None,
+                       title: str = "BIoTan cohort events") -> str:
+    """Self-contained HTML for Mode A cohort events (verdict + per-event charts)."""
+    from biotan import events as _events  # local import; events does not import report
+
+    et = result.events_table()
+    n = len(result.events)
+    out = [
+        "<!doctype html><html lang='en'><head><meta charset='utf-8'>",
+        "<meta name='viewport' content='width=device-width, initial-scale=1'>",
+        f"<title>{_esc(title)}</title><style>{_CSS}</style></head><body><div class='wrap'>",
+        "<div class='top'>", f"<h1>{_esc(title)}</h1>",
+        f"<div class='meta'>{df['device_id'].nunique()} devices · "
+        f"{df['metric'].nunique()} metric(s)</div></div>",
+    ]
+    if n == 0:
+        out.append(f"<div class='hero'><svg viewBox='0 0 920 120' width='100%' "
+                   f"xmlns='http://www.w3.org/2000/svg'><rect width='920' height='120' "
+                   f"rx='14' fill='{_PANEL}'/><text x='40' y='56' font-size='26' "
+                   f"font-weight='800' fill='{_GREEN}' font-family='-apple-system,"
+                   f"Segoe UI,Roboto,Helvetica,Arial,sans-serif'>No cohort events "
+                   f"detected</text><text x='40' y='88' font-size='15' fill='{_MUTED}' "
+                   f"font-family='-apple-system,Segoe UI,Roboto,Helvetica,Arial,"
+                   f"sans-serif'>Members are moving together — no subset diverged from "
+                   f"the cohort consensus.</text></svg></div>")
+    else:
+        out.append(f"<h2>{n} cohort event(s) — who diverged, and when</h2>")
+
+    # precompute aggregated member series per metric (matches detection)
+    for metric, mdf in df.groupby("metric"):
+        agg, _mode = _events._maybe_daily_aggregate(mdf, "auto")
+        agg = agg.copy()
+        if cohort_col and cohort_col in df.columns:
+            cohort_of = mdf.drop_duplicates("device_id").set_index("device_id")[cohort_col]
+            agg["__cohort__"] = agg["device_id"].map(cohort_of).astype(str)
+        else:
+            agg["__cohort__"] = "all"
+        for e in [ev for ev in result.events if ev.metric == str(metric)]:
+            members = agg[agg["__cohort__"] == e.cohort]
+            arrow = "↑ rose" if e.directions == "+" else "↓ fell" if e.directions == "-" else "± mixed"
+            pills = "".join(f"<span class='pill'>{_esc(a.device_id)}</span>" for a in e.affected)
+            out.append(
+                "<div class='panel'>"
+                f"<div class='dev'>{_esc(metric)} · cohort {_esc(e.cohort)} — "
+                f"{e.n_affected} of {e.n_members} diverged ({arrow} vs peers)</div>"
+                f"<div class='sub' style='margin:4px 0 8px'>"
+                f"<span class='muted'>when:</span> {_fmt(e.t_start)} → {_fmt(e.t_end)} · "
+                f"<span class='muted'>who:</span> {pills}</div>"
+                f"{event_chart_svg(members, e)}</div>"
+            )
+
+    if result.notes:
+        out.append("<div class='panel'><div class='sub'>" +
+                   "<br>".join(_esc(nt) for nt in result.notes[:8]) + "</div></div>")
+    out.append(
+        "<footer><b>What this tells you.</b> Mode A reports WHO diverged from the "
+        "cohort consensus and WHEN — not what kind of event. Onsets are hindsight "
+        "estimates (an optimistic upper bound). If &gt;50% of a cohort moves together "
+        "it is treated as a common-mode shift, not an event; and a fleet that "
+        "degrades in lockstep correctly produces no events."
+        "<br><br>100% local · no telemetry. Source-available under PolyForm "
+        "Noncommercial 1.0.0.</footer>")
+    out.append("</div></body></html>")
+    return "".join(out)
+
+
 def write_report(
     path: str,
     df: pd.DataFrame,
