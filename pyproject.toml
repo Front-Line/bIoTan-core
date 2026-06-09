@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "biotan"
-version = "0.1.1"
+version = "0.2.0"
 description = "Zero-config, peer-relative anomaly backtesting for fleets of homogeneous IoT assets (free open core)."
 readme = "README.md"
 requires-python = ">=3.9"

@@ -66,4 +66,4 @@ __all__ = [
     "load_reference",
 ]
 
-__version__ = "0.1.1"
+__version__ = "0.2.0"
