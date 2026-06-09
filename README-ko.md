@@ -204,6 +204,33 @@ python -m biotan events --input data.csv --cohort-col group --report events.html
 보수적인 "락스텝은 침묵" 관점을 원하면 `--min-effect` 를 높이고, 개별 빠른 기기를 보려면 낮춘다 —
 둘 다 같은 데이터의 정직한 관점이다.
 
+### Mode B (실험적, 옵트인) — 기준 궤적 편차
+
+*모두가* 함께 열화하는 fleet(run-to-failure 터보팬)에서는 Mode A가 설계상 침묵한다. Mode B는
+그 경우를 다르게 다룬다. 각 유닛을 **기준 데이터에서 학습한 정상 궤적**(다른 런, 다른 코호트,
+또는 이 fleet 자신의 과거)과 수명 위치(life-position) 기준으로 비교해, 정상보다 더 일찍/빠르게
+벗어나는 유닛을 표시한다.
+
+```bash
+python -m biotan events --input fleet.csv --export-reference profile.json          # 기준 생성
+python -m biotan events --input new.csv --mode reference --reference profile.json  # 기준 대비 채점
+```
+
+**Mode B는 또래-상대가 *아니다*.** 학습된 정상 모델을 쓴다 — "정상 모델 없이 또래와 비교"라는
+BIoTan 코어 철학과 다른 접근으로, 락스텝 열화 fleet을 커버하기 위한 절충이다. 옵트인이며 절대
+기본값이 아니다.
+
+- **센서를 결합하라 — 단일 센서는 무용지물.** NASA C-MAPSS로 검증: 단일 센서의 초기 편차는
+  수명을 예측하지 못한다(Spearman ρ ≈ 0.06, 유의하지 않음). 다중 센서 결합 편차는 예측한다
+  (우리 실행에서 ρ ≈ 0.37, p < 0.01; 프로토타입은 ≈ 0.46). 어느 쪽이든 이것은 **약하지만 실재하는
+  초기 *위험 순위*이지 RUL 예측이 아니다** — 언제 고장 날지가 아니라 어떤 유닛을 먼저 볼지를
+  알려준다.
+- **이식 가능한 기준 프로파일.** 기준은 자기완결적·버전 관리되는 JSON이다(센서별, 수명 위치
+  색인 median / MAD / scale, 그리고 메타데이터: 기기 종류, 환경, 단위, 출처, 메모). 이는 향후
+  **공유 가능한 커뮤니티 프리셋**(다른 곳에서 만든 프로파일에 내 데이터를 돌리기)을 위한 의도된
+  토대다 — 다만 **현재는 공유·레지스트리·업로드 기능이 없다**. 지금은 그저 깔끔하고 문서화된
+  이식 가능한 파일일 뿐이다.
+
 ## 라이선스
 
 BIoTan-core는 [PolyForm Noncommercial License 1.0.0](./LICENSE.md) 하에

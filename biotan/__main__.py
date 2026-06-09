@@ -183,6 +183,36 @@ def _cmd_flag(args: argparse.Namespace) -> int:
 
 def _cmd_events(args: argparse.Namespace) -> int:
     df = _normalize.load(args.input)
+
+    # --- build & export a reference trajectory (Mode B artifact) ---
+    if args.export_reference:
+        ref = _events.build_reference(df)
+        _events.save_reference(ref, args.export_reference)
+        n_sensors = len(ref["sensors"])
+        print(f"Wrote reference trajectory -> {args.export_reference} "
+              f"({ref['metadata']['n_reference_units']} units, {n_sensors} sensors, "
+              f"schema {ref['schema_version']})")
+        return 0
+
+    # --- Mode B: reference-trajectory deviation (EXPERIMENTAL, opt-in) ---
+    if args.mode == "reference":
+        if not args.reference:
+            print("error: --mode reference requires --reference <profile.json>", file=sys.stderr)
+            return 2
+        ref = _events.load_reference(args.reference)
+        scores = _events.score_against_reference(df, ref, early_window=args.early_window)
+        print("Mode B (experimental, model-based — NOT peer-relative): early-life "
+              "deviation vs reference trajectory.")
+        print("This is a weak early RISK RANKING, not an RUL predictor; combine sensors.")
+        print(f"\n  {'device':<24}{'combined_score':>15}{'n_sensors':>11}")
+        for _, r in scores.head(15).iterrows():
+            print(f"  {r['device_id']:<24}{r['combined_score']:>15.3f}{int(r['n_sensors']):>11}")
+        if args.out:
+            scores.to_csv(args.out, index=False)
+            print(f"\nWrote scores -> {args.out}")
+        return 0
+
+    # --- Mode A (default): peer-relative cohort events ---
     result = _events.detect_events(df, cohort_col=args.cohort_col, k=args.k, h=args.h,
                                    min_effect=args.min_effect, period_aggregate=args.period_agg)
     et = result.events_table()
@@ -281,6 +311,13 @@ def build_parser() -> argparse.ArgumentParser:
                          "'lockstep is silent' view on uniformly-degrading fleets")
     pe.add_argument("--period-agg", default="auto", choices=["auto", "daily", "none"],
                     dest="period_agg", help="period aggregation for diurnal data")
+    pe.add_argument("--mode", default="peer", choices=["peer", "reference"],
+                    help="peer = Mode A (default, peer-relative); reference = Mode B "
+                         "(experimental, model-based, NOT peer-relative)")
+    pe.add_argument("--reference", help="Mode B: reference-trajectory JSON to score against")
+    pe.add_argument("--export-reference", help="build a reference-trajectory JSON from this data")
+    pe.add_argument("--early-window", type=int, default=None,
+                    help="Mode B: life-positions used for the early-deviation score")
     pe.set_defaults(func=_cmd_events)
 
     pb = sub.add_parser("backtest", help="full pipeline -> self-contained HTML report")

@@ -122,3 +122,35 @@ if __name__ == "__main__":
         df, truth = gen()
         print(f"{name:9s} rows={len(df):>7,} devices={df['device_id'].nunique():>3} "
               f"truth_affected={truth['affected']}")
+
+
+def degradation_fleet(n_units: int = 100, n_sensors: int = 15, min_life: int = 60,
+                      max_life: int = 200, early_bump: float = 3.0,
+                      degrade_amp: float = 8.0, noise: float = 6.0, seed: int = 3):
+    """Run-to-failure fleet with varying lifetimes and many noisy sensors.
+
+    A unit's *severity* (higher for shorter life) adds a small, **persistent** offset
+    from cycle 1 — the same direction across all sensors — plus a common end-of-life
+    decline. Per sensor that early offset is buried in noise (a single sensor barely
+    correlates with lifetime); averaging across sensors recovers it — the Mode-B
+    mechanism. Returns ``(long_df, lifetimes)``.
+    """
+    rng = np.random.default_rng(seed)
+    base = pd.Timestamp("2027-01-01")
+    sens_base = rng.uniform(40, 60, n_sensors)
+    sens_gain = rng.uniform(0.7, 1.3, n_sensors)
+    rows, lifetimes = [], {}
+    for u in range(n_units):
+        L = int(rng.integers(min_life, max_life + 1))
+        dev = f"u-{u:03d}"
+        lifetimes[dev] = L
+        severity = (max_life - L) / (max_life - min_life)     # 0 (long) .. 1 (short)
+        idx = base + pd.to_timedelta(np.arange(L), unit="D")  # 1 day == 1 cycle
+        frac = np.arange(L) / max(L - 1, 1)
+        for s in range(n_sensors):
+            val = (sens_base[s]
+                   + sens_gain[s] * (severity * early_bump + frac * degrade_amp)
+                   + rng.normal(0, noise, L))
+            rows.append(pd.DataFrame({"device_id": dev, "timestamp": idx,
+                                      "value": val, "metric": f"sensor_{s}"}))
+    return pd.concat(rows, ignore_index=True), lifetimes

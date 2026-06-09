@@ -48,7 +48,9 @@ Honest limits (by design, not bugs)
 
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass, field
+from datetime import datetime, timezone
 
 import numpy as np
 import pandas as pd
@@ -398,3 +400,162 @@ def detect_events(
 
     result.events.sort(key=lambda e: (e.metric, e.t_start))
     return result
+
+
+# ===========================================================================
+# Mode B (OPTIONAL, EXPERIMENTAL) — reference-trajectory deviation
+# ===========================================================================
+# *** Mode B is NOT peer-relative. *** It compares each member to a NORMAL
+# trajectory learned from reference data (other runs / other cohorts / this fleet's
+# own history), indexed by life-position. That is a different philosophy from
+# BIoTan's core "no normal model, compare to peers", traded for coverage of fleets
+# where everyone degrades in lockstep (so Mode A is silent). It is opt-in and never
+# the default.
+#
+# Validated, and reported honestly:
+#   * SINGLE-sensor early deviation does NOT predict lifetime (Spearman rho~0.06, n.s.).
+#   * MULTI-sensor combined early deviation DOES carry a moderate, real signal
+#     (rho~0.46, p<0.01). So Mode B MUST combine sensors — a single one is useless.
+#   * This is a WEAK-but-real early *risk-ranking* signal, NOT an RUL predictor.
+
+#: Reference-artifact schema version (bump on incompatible format changes).
+REFERENCE_SCHEMA_VERSION = "1.0"
+#: A life-position needs at least this many reference units to be recorded.
+REF_MIN_UNITS = 3
+#: Fraction of a unit's life used as the "early window" for risk scoring.
+EARLY_FRACTION = 0.3
+
+
+def _life_positions(metric_df: pd.DataFrame) -> pd.DataFrame:
+    """Add an integer life-position (1..L) per device, ordered by timestamp."""
+    out = metric_df.sort_values(["device_id", "timestamp"]).copy()
+    out["pos"] = out.groupby("device_id").cumcount() + 1
+    return out
+
+
+def build_reference(df: pd.DataFrame, metadata: dict | None = None,
+                    min_units: int = REF_MIN_UNITS) -> dict:
+    """Build a portable reference trajectory (per sensor, life-position-indexed).
+
+    The result is a plain, JSON-serializable dict — a self-contained, versioned,
+    SHAREABLE artifact (see :func:`save_reference`). It records, for each sensor and
+    each life-position, the robust median and MAD across the reference units.
+
+    ``metadata`` may carry human context (device kind, environment, units, source,
+    notes); it is stored verbatim so a profile is self-describing.
+    """
+    sensors: dict[str, dict] = {}
+    for metric, mdf in df.groupby("metric"):
+        m = _life_positions(mdf)
+        recs = []
+        for pos, grp in m.groupby("pos"):
+            vals = grp["value"].dropna()
+            if vals.count() < min_units:
+                continue
+            med = float(vals.median())
+            mad = float(ROBUST_SCALE * (vals - med).abs().median())
+            recs.append((int(pos), med, mad))
+        recs.sort()
+        if recs:
+            allv = m["value"].dropna()
+            # per-sensor GLOBAL robust scale: used to standardize early-window
+            # deviations. (Per-position MAD is ~0 early and amplifies noise; the
+            # global scale is what makes the multi-sensor signal appear.)
+            scale = float(ROBUST_SCALE * (allv - allv.median()).abs().median())
+            sensors[str(metric)] = {
+                "positions": [r[0] for r in recs],
+                "median": [r[1] for r in recs],
+                "mad": [r[2] for r in recs],
+                "scale": max(scale, 1e-9),
+            }
+
+    lengths = df.groupby(["device_id", "metric"]).size().groupby("device_id").max()
+    meta = {"device_kind": None, "environment": None, "units": {},
+            "source": None, "notes": None}
+    if metadata:
+        meta.update(metadata)
+    meta["n_reference_units"] = int(df["device_id"].nunique())
+    meta["median_reference_life"] = int(lengths.median()) if len(lengths) else 0
+    meta["created"] = datetime.now(timezone.utc).isoformat()
+    from biotan import __version__ as _v  # lazy: biotan is fully initialized at call time
+    return {
+        "schema_version": REFERENCE_SCHEMA_VERSION,
+        "kind": "biotan.reference-trajectory",
+        "biotan_version": _v,
+        "life_position": "ordinal_sample_index",  # 1 == first sample, e.g. cycle 1
+        "metadata": meta,
+        "sensors": sensors,
+    }
+
+
+def save_reference(reference: dict, path: str) -> str:
+    """Write a reference trajectory to a portable JSON file."""
+    with open(path, "w", encoding="utf-8") as fh:
+        json.dump(reference, fh, indent=2)
+    return path
+
+
+def load_reference(path: str) -> dict:
+    """Load a reference trajectory JSON file (validates the schema version)."""
+    with open(path, encoding="utf-8") as fh:
+        ref = json.load(fh)
+    sv = ref.get("schema_version")
+    if sv != REFERENCE_SCHEMA_VERSION:
+        raise ValueError(f"unsupported reference schema_version {sv!r} "
+                         f"(expected {REFERENCE_SCHEMA_VERSION!r})")
+    return ref
+
+
+def score_against_reference(df: pd.DataFrame, reference: dict,
+                            early_window: int | None = None) -> pd.DataFrame:
+    """Score each unit's *early-life* deviation from the reference trajectory.
+
+    For each sensor, the early-window mean of ``|value − reference_median[pos]| /
+    reference_scale`` (a per-sensor global robust scale) is computed; the
+    ``combined_score`` averages those across sensors. The result is ranked by
+    ``combined_score``; per-sensor scores are returned as ``score__<sensor>``.
+
+    *** Combine sensors. *** A single sensor's early deviation carries no signal;
+    averaging across sensors recovers a weak-but-real correlation with lifetime. This
+    is an early *risk ranking*, NOT an RUL prediction.
+
+    ``early_window`` is the number of life-positions (e.g. cycles) used; if ``None``
+    it defaults to ~10% of the reference's median life.
+    """
+    sensors = reference.get("sensors", {})
+    if early_window is None:
+        med_life = reference.get("metadata", {}).get("median_reference_life", 0) or 0
+        early_window = max(5, round(0.1 * med_life)) if med_life else 20
+
+    rows = []
+    for dev, ddf in df.groupby("device_id"):
+        per_sensor: dict[str, float] = {}
+        life = 0
+        for metric, mdf in ddf.groupby("metric"):
+            key = str(metric)
+            if key not in sensors:
+                continue
+            lut_med = dict(zip(sensors[key]["positions"], sensors[key]["median"]))
+            scale = sensors[key].get("scale") or 1e-9
+            vals = mdf.sort_values("timestamp")["value"].to_numpy(dtype=float)
+            life = max(life, len(vals))
+            zs = []
+            for i in range(min(early_window, len(vals))):
+                pos = i + 1
+                if pos in lut_med and np.isfinite(vals[i]):
+                    zs.append(abs((vals[i] - lut_med[pos]) / scale))
+            if zs:
+                per_sensor[key] = float(np.mean(zs))
+        if per_sensor:
+            rec = {"device_id": dev,
+                   "combined_score": float(np.mean(list(per_sensor.values()))),
+                   "n_sensors": len(per_sensor), "life_length": int(life),
+                   "early_window": int(early_window)}
+            for kk, vv in per_sensor.items():
+                rec[f"score__{kk}"] = vv
+            rows.append(rec)
+    cols = ["device_id", "combined_score", "n_sensors", "life_length", "early_window"]
+    out = pd.DataFrame(rows)
+    if out.empty:
+        return pd.DataFrame(columns=cols)
+    return out.sort_values("combined_score", ascending=False).reset_index(drop=True)

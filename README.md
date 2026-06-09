@@ -225,6 +225,35 @@ surfaces ~16 individual *faster-degrading* engines; tightened (≥8σ) it narrow
 conservative "lockstep is silent" view, lower it to surface individual fast movers —
 both are honest views of the same data.
 
+### Mode B (experimental, opt-in) — reference-trajectory deviation
+
+For fleets where *everyone* degrades together (run-to-failure turbofans), Mode A is
+silent by design. Mode B handles that case differently: it compares each unit to a
+**normal trajectory learned from reference data** (other runs, other cohorts, or this
+fleet's own history), indexed by life-position, and flags units deviating
+earlier/faster than normal.
+
+```bash
+python -m biotan events --input fleet.csv --export-reference profile.json          # build a reference
+python -m biotan events --input new.csv --mode reference --reference profile.json  # score against it
+```
+
+**Mode B is *not* peer-relative.** It uses a learned normal model — a different
+philosophy from BIoTan's core "no normal model, compare to peers" — traded for
+coverage of lockstep-degradation fleets. It is opt-in and never the default.
+
+- **Combine sensors — a single one is useless.** Validated on NASA C-MAPSS: a single
+  sensor's early deviation does not predict lifetime (Spearman ρ ≈ 0.06, n.s.); the
+  multi-sensor combined deviation does (ρ ≈ 0.37, p < 0.01 in our run; the prototype
+  measured ≈ 0.46). Either way it is a **weak-but-real early *risk ranking*, not an
+  RUL predictor** — which units to inspect first, not when they will fail.
+- **Portable reference profile.** A reference is a self-contained, versioned JSON
+  (per-sensor, life-position-indexed median / MAD / scale, plus metadata: device kind,
+  environment, units, source, notes). This is deliberate groundwork for future
+  **shareable community presets** — running your data against a profile built
+  elsewhere — but there is **no sharing, registry, or upload feature today**; it is
+  simply a clean, documented, portable file.
+
 ## License
 
 BIoTan-core is source-available under the
