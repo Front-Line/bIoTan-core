@@ -173,6 +173,58 @@ or **non-cyclic** fleets (e.g. run-to-failure data) where the zero-config,
 daily-cyclic clustering would over-segment — the same single-cohort mode
 `validation/run_cmapss.py` documents. Auto-clustering is otherwise unchanged.
 
+## Cohort event detection
+
+Everything above asks *"which device is off?"* over the whole history. **Cohort
+event detection** asks a different question: given a **fixed** cohort (a column you
+provide — not auto-clustering), **when** did members start to diverge from their
+common baseline, and **who** diverged? Think of a freezer zone where opening a door
+warms the near-door sensors first.
+
+```bash
+python -m biotan events --input data.csv --cohort-col group --report events.html
+```
+
+**Mode A (default) — peer-relative.** The principles, each one deliberate:
+
+- **Consensus, not your own past.** The baseline is the per-timestamp robust
+  consensus (median / MAD) of the cohort, so we detect members *spreading apart*,
+  not a member changing vs its own history.
+- **Derivative space.** We compare first differences, so constant level offsets
+  between members don't matter — only how they *move*.
+- **CUSUM onset.** A two-sided CUSUM accumulates each member's signed divergence;
+  sustained small drift fires while transient noise doesn't, and the accumulation
+  start estimates the event onset.
+- **Signed subset.** Within an event the affected members are those diverging in a
+  *consistent direction* — direction-based, not magnitude-based (magnitude pulls in
+  noisy-but-healthy members; signed isolates the real subset).
+- **Periodic data is period-aggregated first.** On diurnal data (e.g. solar),
+  differencing raw samples produces garbage at sunrise/sunset, so when the consensus
+  shows a strong intra-day cycle Mode A daily-aggregates before differencing.
+  Steady-state cohorts keep native resolution so intra-day events survive.
+
+It reports **who and when, not what kind** — classification is out of scope.
+
+**Limits (by design, stated plainly):**
+
+- If **>50% of a cohort diverges together**, the consensus is itself corrupted —
+  that is a global common-mode shift, which BIoTan treats as baseline, not an event,
+  and drops.
+- On a fleet degrading in **lockstep** there is no intra-cohort divergence, so Mode A
+  is silent — the correct answer, not a miss.
+- Onsets are hindsight estimates (an optimistic upper bound), like the lead times.
+
+**Validation (honest numbers).** On a synthetic 30-inverter solar fleet Mode A
+daily-aggregates and recovers exactly the injected faulty inverters, excluding
+noisy-but-healthy ones; on a freezer zone it recovers the door-open interval and the
+exact near-door subset. On a *perfectly* lockstep fleet it returns **zero** events.
+Real **NASA C-MAPSS** is *near*-lockstep (engines degrade at slightly different
+rates), so the sensitivity knob `--min-effect` matters: at the default (4σ) Mode A
+surfaces ~16 individual *faster-degrading* engines; tightened (≥8σ) it narrows to the
+~6 most extreme; it never invents a cohort-wide event. Raise `--min-effect` for the
+conservative "lockstep is silent" view, lower it to surface individual fast movers —
+both are honest views of the same data.
+
 ## License
 
 BIoTan-core is source-available under the

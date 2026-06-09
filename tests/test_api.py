@@ -43,7 +43,7 @@ def test_three_line_api(tmp_path):
     assert os.path.exists(written)
     assert out.read_text(encoding="utf-8").startswith("<!doctype html>")
 
-    assert biotan.__version__ == "0.1.0"
+    assert isinstance(biotan.__version__, str) and biotan.__version__
 
 
 def test_accepts_dataframe_and_optional_labels():

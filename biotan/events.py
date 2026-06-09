@@ -259,7 +259,8 @@ def _level_effect(dev_col: np.ndarray, onset_i: int, lo: int, hi: int):
 
 
 def _detect_cohort(metric: str, cohort: str, member_long: pd.DataFrame,
-                   k: float, h: float) -> tuple[list[CohortEvent], list[str]]:
+                   k: float, h: float, min_effect: float
+                   ) -> tuple[list[CohortEvent], list[str]]:
     notes: list[str] = []
     n_members = member_long["device_id"].nunique()
     if n_members < MIN_MEMBERS:
@@ -304,7 +305,7 @@ def _detect_cohort(metric: str, cohort: str, member_long: pd.DataFrame,
         for m, onset_i in cand.items():
             effect, peak_i = _level_effect(dev[m].to_numpy(dtype=float),
                                            onset_i, ev_lo, ev_hi)
-            if abs(effect) < EVENT_EFFECT_K * scale:
+            if abs(effect) < min_effect * scale:
                 continue   # noise-driven firing — no real level shift
             affected_recs.append({"dev": m, "dir": "+" if effect > 0 else "-",
                                   "peak": abs(effect) / scale, "onset": times[onset_i]})
@@ -348,6 +349,7 @@ def detect_events(
     cohort_col: str | None = None,
     k: float = CUSUM_SLACK_K,
     h: float = CUSUM_THRESHOLD_H,
+    min_effect: float = EVENT_EFFECT_K,
     period_aggregate: str = "auto",
 ) -> EventResult:
     """Mode A: find peer-relative cohort events (when members diverge, and who).
@@ -362,6 +364,12 @@ def detect_events(
         used here.
     k, h
         CUSUM slack and threshold (robust-sigma units).
+    min_effect
+        Effect-size gate: an affected member must shift its level-vs-consensus by at
+        least this many robust-sigma. Lower (the default, 4) is sensitive and will
+        surface individual *faster-degrading* members on a near-lockstep fleet
+        (e.g. C-MAPSS); raise it (e.g. 8+) for the conservative "lockstep is silent"
+        view that flags only clear minority breakouts.
     period_aggregate
         ``"auto"`` (default; daily-aggregate only when diurnal), ``"daily"``, or
         ``"none"``.
@@ -384,7 +392,7 @@ def detect_events(
             groups = mdf_agg.groupby("__cohort__")
 
         for cohort, cdf in groups:
-            events, notes = _detect_cohort(str(metric), str(cohort), cdf, k, h)
+            events, notes = _detect_cohort(str(metric), str(cohort), cdf, k, h, min_effect)
             result.events.extend(events)
             result.notes.extend(notes)
 

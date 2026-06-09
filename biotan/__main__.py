@@ -184,7 +184,7 @@ def _cmd_flag(args: argparse.Namespace) -> int:
 def _cmd_events(args: argparse.Namespace) -> int:
     df = _normalize.load(args.input)
     result = _events.detect_events(df, cohort_col=args.cohort_col, k=args.k, h=args.h,
-                                   period_aggregate=args.period_agg)
+                                   min_effect=args.min_effect, period_aggregate=args.period_agg)
     et = result.events_table()
     print(f"Cohort events (Mode A): {len(result.events)}")
     for _, e in et.iterrows():
@@ -276,6 +276,9 @@ def build_parser() -> argparse.ArgumentParser:
     pe.add_argument("--title", help="report title")
     pe.add_argument("--k", type=float, default=_events.CUSUM_SLACK_K, help="CUSUM slack (robust-sigma)")
     pe.add_argument("--h", type=float, default=_events.CUSUM_THRESHOLD_H, help="CUSUM threshold")
+    pe.add_argument("--min-effect", type=float, default=_events.EVENT_EFFECT_K, dest="min_effect",
+                    help="effect-size gate (robust-sigma); raise for the conservative "
+                         "'lockstep is silent' view on uniformly-degrading fleets")
     pe.add_argument("--period-agg", default="auto", choices=["auto", "daily", "none"],
                     dest="period_agg", help="period aggregation for diurnal data")
     pe.set_defaults(func=_cmd_events)
